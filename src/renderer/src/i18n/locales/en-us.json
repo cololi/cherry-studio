@@ -86,6 +86,7 @@
       "message.new.branch.created": "New Branch Created",
       "message.regenerate.model": "Switch Model",
       "message.new.context": "New Context",
+      "message.useful": "Helpful",
       "save": "Save",
       "settings.code_collapsible": "Code block collapsible",
       "settings.context_count": "Context",
@@ -113,7 +114,9 @@
       "topics.move_to": "Move to",
       "topics.title": "Topics",
       "translate": "Translate",
-      "resend": "Resend"
+      "resend": "Resend",
+      "thinking": "Thinking",
+      "deeply_thought": "Deeply thought ({{secounds}} seconds)"
     },
     "common": {
       "and": "and",

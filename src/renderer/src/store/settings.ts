@@ -63,7 +63,10 @@ export interface SettingsState {
   narrowMode: boolean
   enableQuickAssistant: boolean
   clickTrayToShowQuickAssistant: boolean
+  multiModelMessageStyle: MultiModelMessageStyle
 }
+
+export type MultiModelMessageStyle = 'horizontal' | 'vertical' | 'fold'
 
 const initialState: SettingsState = {
   showAssistants: true,
@@ -109,7 +112,8 @@ const initialState: SettingsState = {
   },
   narrowMode: false,
   enableQuickAssistant: false,
-  clickTrayToShowQuickAssistant: false
+  clickTrayToShowQuickAssistant: false,
+  multiModelMessageStyle: 'horizontal'
 }
 
 const settingsSlice = createSlice({
@@ -251,6 +255,9 @@ const settingsSlice = createSlice({
     },
     setEnableQuickAssistant: (state, action: PayloadAction<boolean>) => {
       state.enableQuickAssistant = action.payload
+    },
+    setMultiModelMessageStyle: (state, action: PayloadAction<'horizontal' | 'vertical' | 'fold'>) => {
+      state.multiModelMessageStyle = action.payload
     }
   }
 })
@@ -298,7 +305,8 @@ export const {
   setSidebarIcons,
   setNarrowMode,
   setClickTrayToShowQuickAssistant,
-  setEnableQuickAssistant
+  setEnableQuickAssistant,
+  setMultiModelMessageStyle
 } = settingsSlice.actions
 
 export default settingsSlice.reducer

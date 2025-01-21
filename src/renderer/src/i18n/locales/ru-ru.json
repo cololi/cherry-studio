@@ -86,6 +86,7 @@
       "message.new.branch.created": "Новая ветка создана",
       "message.regenerate.model": "Переключить модель",
       "message.new.context": "Новый контекст",
+      "message.useful": "Полезно",
       "save": "Сохранить",
       "settings.code_collapsible": "Блок кода свернут",
       "settings.context_count": "Контекст",
@@ -113,7 +114,9 @@
       "topics.move_to": "Переместить в",
       "topics.title": "Топики",
       "translate": "Перевести",
-      "resend": "Переотправить"
+      "resend": "Переотправить",
+      "thinking": "Мыслим",
+      "deeply_thought": "Мыслим ({{secounds}} секунд)"
     },
     "common": {
       "and": "и",

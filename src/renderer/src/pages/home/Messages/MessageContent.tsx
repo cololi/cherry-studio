@@ -11,6 +11,7 @@ import Markdown from '../Markdown/Markdown'
 import MessageAttachments from './MessageAttachments'
 import MessageError from './MessageError'
 import MessageSearchResults from './MessageSearchResults'
+import MessageThought from './MessageThought'
 
 const MessageContent: React.FC<{
   message: Message
@@ -37,9 +38,10 @@ const MessageContent: React.FC<{
 
   return (
     <>
-      <Flex gap="8px" wrap>
+      <Flex gap="8px" wrap style={{ marginBottom: 10 }}>
         {message.mentions?.map((model) => <MentionTag key={model.id}>{'@' + model.name}</MentionTag>)}
       </Flex>
+      <MessageThought message={message} />
       <Markdown message={message} />
       {message.translatedContent && (
         <>
