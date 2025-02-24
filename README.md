@@ -1,17 +1,20 @@
-<div align="center">
+<h1 align="center">
   <a href="https://github.com/kangfenmao/cherry-studio/releases">
-    <img src="https://github.com/kangfenmao/cherry-studio/blob/main/build/icon.png?raw=true" width="150" height="150" alt="banner" />
+    <img src="https://github.com/kangfenmao/cherry-studio/blob/main/build/icon.png?raw=true" width="150" height="150" alt="banner" /><br>
   </a>
-</div>
+</h1>
+  <p align="center">English | <a href="./docs/README.zh.md">中文</a> | <a href="./docs/README.ja.md">日本語</a><br></p>
 <div align="center">
-  English | <a href="./docs/README.zh.md">中文</a> | <a href="./docs/README.ja.md">日本語</a>
+ <a href="https://trendshift.io/repositories/11772" target="_blank"><img src="https://trendshift.io/api/badge/repositories/11772" alt="kangfenmao%2Fcherry-studio | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </div>
 
 # 🍒 Cherry Studio
 
 Cherry Studio is a desktop client that supports for multiple LLM providers, available on Windows, Mac and Linux.
 
-👏 Join [Telegram Group](https://t.me/CherryStudioAI)
+👏 Join [Telegram Group](https://t.me/CherryStudioAI)｜[Discord](https://discord.gg/wez8HtpxqQ) | [QQ Group(1025067911)](https://qm.qq.com/q/RIBAO2pPKS)
+
+❤️ Like Cherry Studio? Give it a star 🌟 or [Sponsor](docs/sponsor.md) to support the development!
 
 # 🌠 Screenshot
 
@@ -27,7 +30,7 @@ Cherry Studio is a desktop client that supports for multiple LLM providers, avai
 
    - ☁️ Major LLM Cloud Services: OpenAI, Gemini, Anthropic, and more
    - 🔗 AI Web Service Integration: Claude, Peplexity, Poe, and others
-   - 💻 Local Model Support with Ollama
+   - 💻 Local Model Support with Ollama, LM Studio
 
 2. **AI Assistants & Conversations**:
 
@@ -56,6 +59,20 @@ Cherry Studio is a desktop client that supports for multiple LLM providers, avai
    - 🎨 Light/Dark Themes and Transparent Window
    - 📝 Complete Markdown Rendering
    - 🤲 Easy Content Sharing
+
+# 📝 TODO
+
+- [x] Quick popup (read clipboard, quick question, explain, translate, summarize)
+- [x] Comparison of multi-model answers
+- [x] Support login using SSO provided by service providers
+- [ ] All models support networking (in development...)
+- [ ] Launch of the first official version
+- [ ] Plugin functionality (JavaScript)
+- [ ] Browser extension (highlight text to translate, summarize, add to knowledge base)
+- [ ] iOS & Android client
+- [ ] AI notes
+- [ ] Voice input and output (AI call)
+- [ ] Data backup supports custom backup content
 
 # 🖥️ Develop
 
@@ -112,6 +129,10 @@ We welcome contributions to Cherry Studio! Here are some ways you can contribute
 For more detailed guidelines, please refer to our [Contributing Guide](./CONTRIBUTING.md).
 
 Thank you for your support and contributions!
+
+## Related Projects
+
+- [one-api](https://github.com/songquanpeng/one-api):LLM API management and distribution system, supporting mainstream models like OpenAI, Azure, and Anthropic. Features unified API interface, suitable for key management and secondary distribution.
 
 # 🚀 Contributors
 

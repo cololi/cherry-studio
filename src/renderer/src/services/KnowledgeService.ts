@@ -1,7 +1,10 @@
 import type { ExtractChunkData } from '@llm-tools/embedjs-interfaces'
+import { DEFAULT_KNOWLEDGE_DOCUMENT_COUNT, DEFAULT_KNOWLEDGE_THRESHOLD } from '@renderer/config/constant'
+import { getEmbeddingMaxContext } from '@renderer/config/embedings'
 import AiProvider from '@renderer/providers/AiProvider'
-import { FileType, KnowledgeBase, KnowledgeBaseParams, Message } from '@renderer/types'
-import { take } from 'lodash'
+import store from '@renderer/store'
+import { FileType, KnowledgeBase, KnowledgeBaseParams, KnowledgeReference, Message } from '@renderer/types'
+import { isEmpty, take } from 'lodash'
 
 import { getProviderByModel } from './AssistantService'
 import FileManager from './FileManager'
@@ -16,13 +19,27 @@ export const getKnowledgeBaseParams = (base: KnowledgeBase): KnowledgeBaseParams
     host = host + '/v1beta/openai/'
   }
 
+  let chunkSize = base.chunkSize
+  const maxChunkSize = getEmbeddingMaxContext(base.model.id)
+
+  if (maxChunkSize) {
+    if (chunkSize && chunkSize > maxChunkSize) {
+      chunkSize = maxChunkSize
+    }
+    if (!chunkSize && maxChunkSize < 1024) {
+      chunkSize = maxChunkSize
+    }
+  }
+
   return {
     id: base.id,
     model: base.model.id,
     dimensions: base.dimensions,
     apiKey: aiProvider.getApiKey() || 'secret',
     apiVersion: provider.apiVersion,
-    baseURL: host
+    baseURL: host,
+    chunkSize,
+    chunkOverlap: base.chunkOverlap
   }
 }
 
@@ -62,11 +79,18 @@ export const getKnowledgeSourceUrl = async (item: ExtractChunkData & { file: Fil
   return item.metadata.source
 }
 
-export const getKnowledgeReferences = async (base: KnowledgeBase, message: Message) => {
-  const searchResults = await window.api.knowledgeBase.search({
-    search: message.content,
-    base: getKnowledgeBaseParams(base)
-  })
+export const getKnowledgeBaseReference = async (base: KnowledgeBase, message: Message) => {
+  const searchResults = await window.api.knowledgeBase
+    .search({
+      search: message.content,
+      base: getKnowledgeBaseParams(base)
+    })
+    .then((results) =>
+      results.filter((item) => {
+        const threshold = base.threshold || DEFAULT_KNOWLEDGE_THRESHOLD
+        return item.score >= threshold
+      })
+    )
 
   const _searchResults = await Promise.all(
     searchResults.map(async (item) => {
@@ -75,19 +99,37 @@ export const getKnowledgeReferences = async (base: KnowledgeBase, message: Messa
     })
   )
 
+  const documentCount = base.documentCount || DEFAULT_KNOWLEDGE_DOCUMENT_COUNT
+
   const references = await Promise.all(
-    take(_searchResults, 6).map(async (item, index) => {
+    take(_searchResults, documentCount).map(async (item, index) => {
       const baseItem = base.items.find((i) => i.uniqueId === item.metadata.uniqueLoaderId)
       return {
-        id: index,
+        id: index + 1,
         content: item.pageContent,
         sourceUrl: await getKnowledgeSourceUrl(item),
         type: baseItem?.type
-      }
+      } as KnowledgeReference
     })
   )
 
-  const referencesContent = `\`\`\`json\n${JSON.stringify(references, null, 2)}\n\`\`\``
+  return references
+}
 
-  return referencesContent
+export const getKnowledgeBaseReferences = async (message: Message) => {
+  if (isEmpty(message.knowledgeBaseIds)) {
+    return []
+  }
+
+  const bases = store.getState().knowledge.bases.filter((kb) => message.knowledgeBaseIds?.includes(kb.id))
+
+  if (!bases || bases.length === 0) {
+    return []
+  }
+
+  const referencesPromises = bases.map(async (base) => await getKnowledgeBaseReference(base, message))
+
+  const references = (await Promise.all(referencesPromises)).filter((result) => !isEmpty(result)).flat()
+
+  return references
 }

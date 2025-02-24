@@ -1,4 +1,4 @@
-import { DeleteOutlined, EditOutlined, FileTextOutlined, PlusOutlined } from '@ant-design/icons'
+import { DeleteOutlined, EditOutlined, FileTextOutlined, PlusOutlined, SettingOutlined } from '@ant-design/icons'
 import { Navbar, NavbarCenter } from '@renderer/components/app/Navbar'
 import DragableList from '@renderer/components/DragableList'
 import ListItem from '@renderer/components/ListItem'
@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next'
 import styled from 'styled-components'
 
 import AddKnowledgePopup from './components/AddKnowledgePopup'
+import KnowledgeSettingsPopup from './components/KnowledgeSettingsPopup'
 import KnowledgeContent from './KnowledgeContent'
 
 const KnowledgePage: FC = () => {
@@ -21,7 +22,10 @@ const KnowledgePage: FC = () => {
   const [isDragging, setIsDragging] = useState(false)
 
   const handleAddKnowledge = async () => {
-    await AddKnowledgePopup.show({ title: t('knowledge.add.title') })
+    const newBase = await AddKnowledgePopup.show({ title: t('knowledge.add.title') })
+    if (newBase) {
+      setSelectedBase(newBase)
+    }
   }
 
   useEffect(() => {
@@ -47,6 +51,12 @@ const KnowledgePage: FC = () => {
             }
           }
         },
+        {
+          label: t('knowledge.settings'),
+          key: 'settings',
+          icon: <SettingOutlined />,
+          onClick: () => KnowledgeSettingsPopup.show({ base })
+        },
         { type: 'divider' },
         {
           label: t('common.delete'),
@@ -58,6 +68,7 @@ const KnowledgePage: FC = () => {
               title: t('knowledge.delete_confirm'),
               centered: true,
               onOk: () => {
+                setSelectedBase(undefined)
                 deleteKnowledgeBase(base.id)
               }
             })

@@ -20,7 +20,8 @@ export default defineConfig({
           '@llm-tools/embedjs-loader-xml',
           '@llm-tools/embedjs-loader-pdf',
           '@llm-tools/embedjs-loader-sitemap',
-          '@llm-tools/embedjs-libsql'
+          '@llm-tools/embedjs-libsql',
+          '@llm-tools/embedjs-loader-image'
         ]
       }),
       ...visualizerPlugin('main')
@@ -50,7 +51,7 @@ export default defineConfig({
       }
     },
     optimizeDeps: {
-      exclude: ['chunk-RK3FTE5R.js']
+      exclude: ['chunk-PZ64DZKH.js', 'chunk-JMKENWIY.js', 'chunk-UXYB6GHG.js']
     }
   }
 })

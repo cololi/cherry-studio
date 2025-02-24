@@ -9,15 +9,14 @@ import { getDefaultTopic } from '@renderer/services/AssistantService'
 import { EVENT_NAMES, EventEmitter } from '@renderer/services/EventService'
 import {
   deleteMessageFiles,
-  filterMessages,
   getAssistantMessage,
   getContextCount,
   getGroupedMessages,
   getUserMessage
 } from '@renderer/services/MessagesService'
 import { estimateHistoryTokens } from '@renderer/services/TokenService'
-import { Assistant, Message, Model, Topic } from '@renderer/types'
-import { captureScrollableDiv, runAsyncFunction, uuid } from '@renderer/utils'
+import { Assistant, Message, Topic } from '@renderer/types'
+import { captureScrollableDivAsBlob, captureScrollableDivAsDataURL, runAsyncFunction } from '@renderer/utils'
 import { t } from 'i18next'
 import { flatten, last, take } from 'lodash'
 import { FC, useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -68,6 +67,7 @@ const Messages: FC<Props> = ({ assistant, topic, setActiveTopic }) => {
   const onSendMessage = useCallback(
     async (message: Message) => {
       const assistantMessages: Message[] = []
+
       if (message.mentions?.length) {
         message.mentions.forEach((m) => {
           const assistantMessage = getAssistantMessage({ assistant: { ...assistant, model: m }, topic })
@@ -90,6 +90,17 @@ const Messages: FC<Props> = ({ assistant, topic, setActiveTopic }) => {
       scrollToBottom()
     },
     [assistant, scrollToBottom, topic]
+  )
+
+  const onAppendMessage = useCallback(
+    (message: Message) => {
+      setMessages((prev) => {
+        const messages = prev.concat([message])
+        db.topics.put({ id: topic.id, messages })
+        return messages
+      })
+    },
+    [topic.id]
   )
 
   const autoRenameTopic = useCallback(async () => {
@@ -146,24 +157,37 @@ const Messages: FC<Props> = ({ assistant, topic, setActiveTopic }) => {
   useEffect(() => {
     const unsubscribes = [
       EventEmitter.on(EVENT_NAMES.SEND_MESSAGE, onSendMessage),
+      EventEmitter.on(EVENT_NAMES.APPEND_MESSAGE, onAppendMessage),
       EventEmitter.on(EVENT_NAMES.RECEIVE_MESSAGE, async () => {
         setTimeout(() => EventEmitter.emit(EVENT_NAMES.AI_AUTO_RENAME), 100)
       }),
-      EventEmitter.on(EVENT_NAMES.REGENERATE_MESSAGE, async (model: Model) => {
-        const lastUserMessage = last(filterMessages(messages).filter((m) => m.role === 'user'))
-        lastUserMessage &&
-          onSendMessage({ ...lastUserMessage, id: uuid(), modelId: model.id, model: model, mentions: [model] })
-      }),
       EventEmitter.on(EVENT_NAMES.AI_AUTO_RENAME, autoRenameTopic),
-      EventEmitter.on(EVENT_NAMES.CLEAR_MESSAGES, () => {
+      EventEmitter.on(EVENT_NAMES.CLEAR_MESSAGES, (data: Topic) => {
+        const defaultTopic = getDefaultTopic(assistant.id)
+
+        // Clear messages of other topics
+        if (data && data.id !== topic.id) {
+          TopicManager.clearTopicMessages(data.id)
+          updateTopic({ ...data, name: defaultTopic.name, messages: [] })
+          return
+        }
+
+        // Clear messages of current topic
         setMessages([])
         setDisplayMessages([])
-        const defaultTopic = getDefaultTopic(assistant.id)
-        updateTopic({ ...topic, name: defaultTopic.name, messages: [] })
+        const _topic = getTopic(assistant, topic.id)
+        _topic && updateTopic({ ..._topic, name: defaultTopic.name, messages: [] })
         TopicManager.clearTopicMessages(topic.id)
       }),
+      EventEmitter.on(EVENT_NAMES.COPY_TOPIC_IMAGE, async () => {
+        await captureScrollableDivAsBlob(containerRef, async (blob) => {
+          if (blob) {
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+          }
+        })
+      }),
       EventEmitter.on(EVENT_NAMES.EXPORT_TOPIC_IMAGE, async () => {
-        const imageData = await captureScrollableDiv(containerRef)
+        const imageData = await captureScrollableDivAsDataURL(containerRef)
         if (imageData) {
           window.api.file.saveImage(topic.name, imageData)
         }
@@ -215,6 +239,7 @@ const Messages: FC<Props> = ({ assistant, topic, setActiveTopic }) => {
     assistant,
     autoRenameTopic,
     messages,
+    onAppendMessage,
     onDeleteMessage,
     onSendMessage,
     scrollToBottom,
@@ -307,7 +332,7 @@ const Messages: FC<Props> = ({ assistant, topic, setActiveTopic }) => {
             ))}
           </ScrollContainer>
         </InfiniteScroll>
-        <Prompt assistant={assistant} key={assistant.prompt} />
+        <Prompt assistant={assistant} key={assistant.prompt} topic={topic} />
       </NarrowLayout>
     </Container>
   )
@@ -331,7 +356,6 @@ const LoaderContainer = styled.div<LoaderProps>`
 const ScrollContainer = styled.div`
   display: flex;
   flex-direction: column-reverse;
-  padding: 0 20px;
 `
 
 interface ContainerProps {
@@ -341,8 +365,7 @@ interface ContainerProps {
 const Container = styled(Scrollbar)<ContainerProps>`
   display: flex;
   flex-direction: column-reverse;
-  padding: 10px 0;
-  padding-bottom: 20px;
+  padding: 10px 0 20px;
   overflow-x: hidden;
   background-color: var(--color-background);
 `

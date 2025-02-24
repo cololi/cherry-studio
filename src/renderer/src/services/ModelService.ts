@@ -1,5 +1,6 @@
 import store from '@renderer/store'
 import { Model } from '@renderer/types'
+import { t } from 'i18next'
 import { pick } from 'lodash'
 
 export const getModelUniqId = (m?: Model) => {
@@ -14,4 +15,16 @@ export const hasModel = (m?: Model) => {
     .flat()
 
   return allModels.find((model) => model.id === m?.id)
+}
+
+export function getModelName(model?: Model) {
+  const provider = store.getState().llm.providers.find((p) => p.id === model?.provider)
+  const modelName = model?.name || model?.id || ''
+
+  if (provider) {
+    const providerName = provider?.isSystem ? t(`provider.${provider.id}`) : provider?.name
+    return `${modelName} | ${providerName}`
+  }
+
+  return modelName
 }

@@ -1,4 +1,5 @@
 import { FileType, Model } from '@renderer/types'
+import { ModalFuncProps } from 'antd/es/modal/interface'
 import imageCompression from 'browser-image-compression'
 import html2canvas from 'html2canvas'
 // @ts-ignore next-line`
@@ -27,10 +28,6 @@ export function isJSON(str: any): boolean {
 }
 
 export function parseJSON(str: string) {
-  if (str === 'undefined') {
-    return undefined
-  }
-
   try {
     return JSON.parse(str)
   } catch (e) {
@@ -332,7 +329,7 @@ export const captureScrollableDiv = async (divRef: React.RefObject<HTMLDivElemen
       div.style.overflow = originalStyle.overflow
       div.style.position = originalStyle.position
 
-      const imageData = canvas.toDataURL('image/png')
+      const imageData = canvas
 
       // Restore original scroll position
       setTimeout(() => {
@@ -346,6 +343,21 @@ export const captureScrollableDiv = async (divRef: React.RefObject<HTMLDivElemen
   }
 
   return Promise.resolve(undefined)
+}
+
+export const captureScrollableDivAsDataURL = async (divRef: React.RefObject<HTMLDivElement>) => {
+  return captureScrollableDiv(divRef).then((canvas) => {
+    if (canvas) {
+      return canvas.toDataURL('image/png')
+    }
+    return Promise.resolve(undefined)
+  })
+}
+
+export const captureScrollableDivAsBlob = async (divRef: React.RefObject<HTMLDivElement>, func: BlobCallback) => {
+  await captureScrollableDiv(divRef).then((canvas) => {
+    canvas?.toBlob(func, 'image/png')
+  })
 }
 
 export function hasPath(url: string): boolean {
@@ -395,6 +407,41 @@ export const compareVersions = (v1: string, v2: string): number => {
 
 export function isMiniWindow() {
   return window.location.hash === '#/mini'
+}
+
+export function modalConfirm(params: ModalFuncProps) {
+  return new Promise((resolve) => {
+    window.modal.confirm({
+      centered: true,
+      ...params,
+      onOk: () => resolve(true),
+      onCancel: () => resolve(false)
+    })
+  })
+}
+
+export function getTitleFromString(str: string, length: number = 80) {
+  let title = str.split('\n')[0]
+
+  if (title.includes('。')) {
+    title = title.split('。')[0]
+  } else if (title.includes('，')) {
+    title = title.split('，')[0]
+  } else if (title.includes('.')) {
+    title = title.split('.')[0]
+  } else if (title.includes(',')) {
+    title = title.split(',')[0]
+  }
+
+  if (title.length > length) {
+    title = title.slice(0, length)
+  }
+
+  if (!title) {
+    title = str.slice(0, length)
+  }
+
+  return title
 }
 
 export { classNames }

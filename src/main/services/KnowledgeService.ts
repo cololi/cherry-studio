@@ -1,18 +1,21 @@
 import * as fs from 'node:fs'
 import path from 'node:path'
 
-import { LocalPathLoader, RAGApplication, RAGApplicationBuilder, TextLoader } from '@llm-tools/embedjs'
-import type { AddLoaderReturn, ExtractChunkData } from '@llm-tools/embedjs-interfaces'
+import { RAGApplication, RAGApplicationBuilder, TextLoader } from '@llm-tools/embedjs'
+import type { ExtractChunkData } from '@llm-tools/embedjs-interfaces'
 import { LibSqlDb } from '@llm-tools/embedjs-libsql'
-import { MarkdownLoader } from '@llm-tools/embedjs-loader-markdown'
-import { DocxLoader, ExcelLoader, PptLoader } from '@llm-tools/embedjs-loader-msoffice'
-import { PdfLoader } from '@llm-tools/embedjs-loader-pdf'
 import { SitemapLoader } from '@llm-tools/embedjs-loader-sitemap'
 import { WebLoader } from '@llm-tools/embedjs-loader-web'
 import { AzureOpenAiEmbeddings, OpenAiEmbeddings } from '@llm-tools/embedjs-openai'
+import { addFileLoader } from '@main/loader'
 import { getInstanceName } from '@main/utils'
+import { getAllFiles } from '@main/utils/file'
+import type { LoaderReturn } from '@shared/config/types'
 import { FileType, KnowledgeBaseParams, KnowledgeItem } from '@types'
 import { app } from 'electron'
+import { v4 as uuidv4 } from 'uuid'
+
+import { windowService } from './WindowService'
 
 class KnowledgeService {
   private storageDir = path.join(app.getPath('userData'), 'Data', 'KnowledgeBase')
@@ -35,6 +38,7 @@ class KnowledgeService {
     baseURL,
     dimensions
   }: KnowledgeBaseParams): Promise<RAGApplication> => {
+    const batchSize = 10
     return new RAGApplicationBuilder()
       .setModel('NO_MODEL')
       .setEmbeddingModel(
@@ -45,14 +49,14 @@ class KnowledgeService {
               azureOpenAIApiDeploymentName: model,
               azureOpenAIApiInstanceName: getInstanceName(baseURL),
               dimensions,
-              batchSize: 10
+              batchSize
             })
           : new OpenAiEmbeddings({
               model,
               apiKey,
               configuration: { baseURL },
               dimensions,
-              batchSize: 10
+              batchSize
             })
       )
       .setVectorDatabase(new LibSqlDb({ path: path.join(this.storageDir, id) }))
@@ -78,70 +82,103 @@ class KnowledgeService {
   public add = async (
     _: Electron.IpcMainInvokeEvent,
     { base, item, forceReload = false }: { base: KnowledgeBaseParams; item: KnowledgeItem; forceReload: boolean }
-  ): Promise<AddLoaderReturn> => {
+  ): Promise<LoaderReturn> => {
     const ragApplication = await this.getRagApplication(base)
+
+    const sendDirectoryProcessingPercent = (totalFiles: number, processedFiles: number) => {
+      const mainWindow = windowService.getMainWindow()
+      mainWindow?.webContents.send(base.id, (processedFiles / totalFiles) * 100)
+    }
 
     if (item.type === 'directory') {
       const directory = item.content as string
-      return await ragApplication.addLoader(new LocalPathLoader({ path: directory }), forceReload)
+      const files = getAllFiles(directory)
+      const totalFiles = files.length
+      let processedFiles = 0
+
+      const loaderPromises = files.map(async (file) => {
+        const result = await addFileLoader(ragApplication, file, base, forceReload)
+        processedFiles++
+        sendDirectoryProcessingPercent(totalFiles, processedFiles)
+        return result
+      })
+
+      const loaderResults = await Promise.allSettled(loaderPromises)
+      // @ts-ignore uniqueId
+      const uniqueIds = loaderResults.filter((result) => result.status === 'fulfilled').map((result) => result.uniqueId)
+
+      return {
+        entriesAdded: loaderResults.length,
+        uniqueId: `DirectoryLoader_${uuidv4()}`,
+        uniqueIds,
+        loaderType: 'DirectoryLoader'
+      } as LoaderReturn
     }
 
     if (item.type === 'url') {
       const content = item.content as string
       if (content.startsWith('http')) {
-        // @ts-ignore loader type
-        return await ragApplication.addLoader(new WebLoader({ urlOrContent: content }), forceReload)
+        const loaderReturn = await ragApplication.addLoader(
+          new WebLoader({ urlOrContent: content, chunkSize: base.chunkSize, chunkOverlap: base.chunkOverlap }) as any,
+          forceReload
+        )
+        return {
+          entriesAdded: loaderReturn.entriesAdded,
+          uniqueId: loaderReturn.uniqueId,
+          uniqueIds: [loaderReturn.uniqueId],
+          loaderType: loaderReturn.loaderType
+        } as LoaderReturn
       }
     }
 
     if (item.type === 'sitemap') {
       const content = item.content as string
       // @ts-ignore loader type
-      return await ragApplication.addLoader(new SitemapLoader({ url: content }), forceReload)
+      const loaderReturn = await ragApplication.addLoader(
+        new SitemapLoader({ url: content, chunkSize: base.chunkSize, chunkOverlap: base.chunkOverlap }) as any,
+        forceReload
+      )
+      return {
+        entriesAdded: loaderReturn.entriesAdded,
+        uniqueId: loaderReturn.uniqueId,
+        uniqueIds: [loaderReturn.uniqueId],
+        loaderType: loaderReturn.loaderType
+      } as LoaderReturn
     }
 
     if (item.type === 'note') {
       const content = item.content as string
-      return await ragApplication.addLoader(new TextLoader({ text: content }), forceReload)
+      console.debug('chunkSize', base.chunkSize)
+      const loaderReturn = await ragApplication.addLoader(
+        new TextLoader({ text: content, chunkSize: base.chunkSize, chunkOverlap: base.chunkOverlap }),
+        forceReload
+      )
+      return {
+        entriesAdded: loaderReturn.entriesAdded,
+        uniqueId: loaderReturn.uniqueId,
+        uniqueIds: [loaderReturn.uniqueId],
+        loaderType: loaderReturn.loaderType
+      } as LoaderReturn
     }
 
     if (item.type === 'file') {
       const file = item.content as FileType
 
-      if (file.ext === '.pdf') {
-        return await ragApplication.addLoader(new PdfLoader({ filePathOrUrl: file.path }) as any, forceReload)
-      }
-
-      if (file.ext === '.docx') {
-        return await ragApplication.addLoader(new DocxLoader({ filePathOrUrl: file.path }) as any, forceReload)
-      }
-
-      if (file.ext === '.pptx') {
-        return await ragApplication.addLoader(new PptLoader({ filePathOrUrl: file.path }) as any, forceReload)
-      }
-
-      if (file.ext === '.xlsx') {
-        return await ragApplication.addLoader(new ExcelLoader({ filePathOrUrl: file.path }) as any, forceReload)
-      }
-
-      if (['.md'].includes(file.ext)) {
-        return await ragApplication.addLoader(new MarkdownLoader({ filePathOrUrl: file.path }) as any, forceReload)
-      }
-
-      const fileContent = fs.readFileSync(file.path, 'utf-8')
-
-      return await ragApplication.addLoader(new TextLoader({ text: fileContent }), forceReload)
+      return await addFileLoader(ragApplication, file, base, forceReload)
     }
 
-    return { entriesAdded: 0, uniqueId: '', loaderType: '' }
+    return { entriesAdded: 0, uniqueId: '', uniqueIds: [''], loaderType: '' }
   }
 
   public remove = async (
     _: Electron.IpcMainInvokeEvent,
-    { uniqueId, base }: { uniqueId: string; base: KnowledgeBaseParams }
+    { uniqueId, uniqueIds, base }: { uniqueId: string; uniqueIds: string[]; base: KnowledgeBaseParams }
   ): Promise<void> => {
     const ragApplication = await this.getRagApplication(base)
-    await ragApplication.deleteLoader(uniqueId)
+    console.debug(`[ KnowledgeService Remove Item UniqueId: ${uniqueId}]`)
+    for (const id of uniqueIds) {
+      await ragApplication.deleteLoader(id)
+    }
   }
 
   public search = async (

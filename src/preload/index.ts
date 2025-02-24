@@ -1,6 +1,6 @@
 import { electronAPI } from '@electron-toolkit/preload'
 import { FileType, KnowledgeBaseParams, KnowledgeItem, Shortcut, WebDavConfig } from '@types'
-import { contextBridge, ipcRenderer, OpenDialogOptions } from 'electron'
+import { contextBridge, ipcRenderer, OpenDialogOptions, shell } from 'electron'
 
 // Custom APIs for renderer
 const api = {
@@ -47,6 +47,9 @@ const api = {
     copy: (fileId: string, destPath: string) => ipcRenderer.invoke('file:copy', fileId, destPath),
     binaryFile: (fileId: string) => ipcRenderer.invoke('file:binaryFile', fileId)
   },
+  fs: {
+    read: (path: string) => ipcRenderer.invoke('fs:read', path)
+  },
   export: {
     toWord: (markdown: string, fileName: string) => ipcRenderer.invoke('export:word', markdown, fileName)
   },
@@ -68,8 +71,8 @@ const api = {
       item: KnowledgeItem
       forceReload?: boolean
     }) => ipcRenderer.invoke('knowledge-base:add', { base, item, forceReload }),
-    remove: ({ uniqueId, base }: { uniqueId: string; base: KnowledgeBaseParams }) =>
-      ipcRenderer.invoke('knowledge-base:remove', { uniqueId, base }),
+    remove: ({ uniqueId, uniqueIds, base }: { uniqueId: string; uniqueIds: string[]; base: KnowledgeBaseParams }) =>
+      ipcRenderer.invoke('knowledge-base:remove', { uniqueId, uniqueIds, base }),
     search: ({ search, base }: { search: string; base: KnowledgeBaseParams }) =>
       ipcRenderer.invoke('knowledge-base:search', { search, base })
   },
@@ -96,6 +99,14 @@ const api = {
     hide: () => ipcRenderer.invoke('miniwindow:hide'),
     close: () => ipcRenderer.invoke('miniwindow:close'),
     toggle: () => ipcRenderer.invoke('miniwindow:toggle')
+  },
+  aes: {
+    encrypt: (text: string, secretKey: string, iv: string) => ipcRenderer.invoke('aes:encrypt', text, secretKey, iv),
+    decrypt: (encryptedData: string, iv: string, secretKey: string) =>
+      ipcRenderer.invoke('aes:decrypt', encryptedData, iv, secretKey)
+  },
+  shell: {
+    openExternal: shell.openExternal
   }
 }
 

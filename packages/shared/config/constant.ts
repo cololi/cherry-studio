@@ -2,6 +2,8 @@ export const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']
 export const videoExts = ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.mkv']
 export const audioExts = ['.mp3', '.wav', '.ogg', '.flac', '.aac']
 export const documentExts = ['.pdf', '.docx', '.pptx', '.xlsx', '.odt', '.odp', '.ods']
+export const thirdPartyApplicationExts = ['.draftsExport']
+export const bookExts = ['.epub']
 export const textExts = [
   '.txt', // 普通文本文件
   '.md', // Markdown 文件
@@ -87,7 +89,11 @@ export const textExts = [
   '.gradle', // Gradle 构建文件
   '.groovy', // Gradle 构建文件
   '.kts', // Kotlin Script 文件
-  '.java' // Java 代码文件
+  '.java', // Java 代码文件
+  '.cs', // C# 代码文件
+  '.cpp', // C++ 代码文件
+  '.c', // C++ 代码文件
+  '.h' // C++ 头文件
 ]
 
 export const ZOOM_SHORTCUTS = [

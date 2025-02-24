@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { TRANSLATE_PROMPT } from '@renderer/config/prompts'
-import { CodeStyleVarious, LanguageVarious, ThemeMode } from '@renderer/types'
+import { CodeStyleVarious, LanguageVarious, ThemeMode, TranslateLanguageVarious } from '@renderer/types'
 
 export type SendMessageShortcut = 'Enter' | 'Shift+Enter' | 'Ctrl+Enter' | 'Command+Enter'
 
@@ -21,6 +21,7 @@ export interface SettingsState {
   showTopics: boolean
   sendMessageShortcut: SendMessageShortcut
   language: LanguageVarious
+  targetLanguage: TranslateLanguageVarious
   proxyMode: 'system' | 'custom' | 'none'
   proxyUrl?: string
   userName: string
@@ -43,6 +44,8 @@ export interface SettingsState {
   mathEngine: 'MathJax' | 'KaTeX'
   messageStyle: 'plain' | 'bubble'
   codeStyle: CodeStyleVarious
+  gridColumns: number
+  gridPopoverTrigger: 'hover' | 'click'
   // webdav 配置 host, user, pass, path
   webdavHost: string
   webdavUser: string
@@ -64,15 +67,22 @@ export interface SettingsState {
   enableQuickAssistant: boolean
   clickTrayToShowQuickAssistant: boolean
   multiModelMessageStyle: MultiModelMessageStyle
+  notionDatabaseID: string | null
+  notionApiKey: string | null
+  notionPageNameKey: string | null
+  thoughtAutoCollapse: boolean
+  notionAutoSplit: boolean
+  notionSplitSize: number
 }
 
-export type MultiModelMessageStyle = 'horizontal' | 'vertical' | 'fold'
+export type MultiModelMessageStyle = 'horizontal' | 'vertical' | 'fold' | 'grid'
 
 const initialState: SettingsState = {
   showAssistants: true,
   showTopics: true,
   sendMessageShortcut: 'Enter',
   language: navigator.language as LanguageVarious,
+  targetLanguage: 'english' as TranslateLanguageVarious,
   proxyMode: 'system',
   proxyUrl: undefined,
   userName: '',
@@ -92,9 +102,11 @@ const initialState: SettingsState = {
   renderInputMessageAsMarkdown: false,
   codeShowLineNumbers: false,
   codeCollapsible: false,
-  mathEngine: 'MathJax',
+  mathEngine: 'KaTeX',
   messageStyle: 'plain',
   codeStyle: 'auto',
+  gridColumns: 2,
+  gridPopoverTrigger: 'hover',
   webdavHost: '',
   webdavUser: '',
   webdavPass: '',
@@ -113,7 +125,13 @@ const initialState: SettingsState = {
   narrowMode: false,
   enableQuickAssistant: false,
   clickTrayToShowQuickAssistant: false,
-  multiModelMessageStyle: 'horizontal'
+  multiModelMessageStyle: 'fold',
+  notionDatabaseID: '',
+  notionApiKey: '',
+  notionPageNameKey: 'Name',
+  thoughtAutoCollapse: true,
+  notionAutoSplit: false,
+  notionSplitSize: 90
 }
 
 const settingsSlice = createSlice({
@@ -138,6 +156,9 @@ const settingsSlice = createSlice({
     setLanguage: (state, action: PayloadAction<LanguageVarious>) => {
       state.language = action.payload
       window.electron.ipcRenderer.send('miniwindow-reload')
+    },
+    setTargetLanguage: (state, action: PayloadAction<TranslateLanguageVarious>) => {
+      state.targetLanguage = action.payload
     },
     setProxyMode: (state, action: PayloadAction<'system' | 'custom' | 'none'>) => {
       state.proxyMode = action.payload
@@ -215,6 +236,12 @@ const settingsSlice = createSlice({
     setMathEngine: (state, action: PayloadAction<'MathJax' | 'KaTeX'>) => {
       state.mathEngine = action.payload
     },
+    setGridColumns: (state, action: PayloadAction<number>) => {
+      state.gridColumns = action.payload
+    },
+    setGridPopoverTrigger: (state, action: PayloadAction<'hover' | 'click'>) => {
+      state.gridPopoverTrigger = action.payload
+    },
     setMessageStyle: (state, action: PayloadAction<'plain' | 'bubble'>) => {
       state.messageStyle = action.payload
     },
@@ -256,8 +283,26 @@ const settingsSlice = createSlice({
     setEnableQuickAssistant: (state, action: PayloadAction<boolean>) => {
       state.enableQuickAssistant = action.payload
     },
-    setMultiModelMessageStyle: (state, action: PayloadAction<'horizontal' | 'vertical' | 'fold'>) => {
+    setMultiModelMessageStyle: (state, action: PayloadAction<'horizontal' | 'vertical' | 'fold' | 'grid'>) => {
       state.multiModelMessageStyle = action.payload
+    },
+    setNotionDatabaseID: (state, action: PayloadAction<string>) => {
+      state.notionDatabaseID = action.payload
+    },
+    setNotionApiKey: (state, action: PayloadAction<string>) => {
+      state.notionApiKey = action.payload
+    },
+    setNotionPageNameKey: (state, action: PayloadAction<string>) => {
+      state.notionPageNameKey = action.payload
+    },
+    setThoughtAutoCollapse: (state, action: PayloadAction<boolean>) => {
+      state.thoughtAutoCollapse = action.payload
+    },
+    setNotionAutoSplit: (state, action: PayloadAction<boolean>) => {
+      state.notionAutoSplit = action.payload
+    },
+    setNotionSplitSize: (state, action: PayloadAction<number>) => {
+      state.notionSplitSize = action.payload
     }
   }
 })
@@ -269,6 +314,7 @@ export const {
   toggleShowTopics,
   setSendMessageShortcut,
   setLanguage,
+  setTargetLanguage,
   setProxyMode,
   setProxyUrl,
   setUserName,
@@ -294,6 +340,8 @@ export const {
   setCodeShowLineNumbers,
   setCodeCollapsible,
   setMathEngine,
+  setGridColumns,
+  setGridPopoverTrigger,
   setMessageStyle,
   setCodeStyle,
   setTranslateModelPrompt,
@@ -306,7 +354,13 @@ export const {
   setNarrowMode,
   setClickTrayToShowQuickAssistant,
   setEnableQuickAssistant,
-  setMultiModelMessageStyle
+  setMultiModelMessageStyle,
+  setNotionDatabaseID,
+  setNotionApiKey,
+  setNotionPageNameKey,
+  setThoughtAutoCollapse,
+  setNotionAutoSplit,
+  setNotionSplitSize
 } = settingsSlice.actions
 
 export default settingsSlice.reducer

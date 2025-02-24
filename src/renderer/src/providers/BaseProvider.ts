@@ -1,12 +1,25 @@
-import { REFERENCE_PROMPT } from '@renderer/config/prompts'
+import { FOOTNOTE_PROMPT, REFERENCE_PROMPT } from '@renderer/config/prompts'
+import { getLMStudioKeepAliveTime } from '@renderer/hooks/useLMStudio'
 import { getOllamaKeepAliveTime } from '@renderer/hooks/useOllama'
-import { getKnowledgeReferences } from '@renderer/services/KnowledgeService'
-import store from '@renderer/store'
-import { Assistant, GenerateImageParams, Message, Model, Provider, Suggestion } from '@renderer/types'
+import { getKnowledgeBaseReferences } from '@renderer/services/KnowledgeService'
+import type {
+  Assistant,
+  GenerateImageParams,
+  KnowledgeReference,
+  Message,
+  Model,
+  Provider,
+  Suggestion
+} from '@renderer/types'
 import { delay, isJSON, parseJSON } from '@renderer/utils'
-import OpenAI from 'openai'
+import { addAbortController, removeAbortController } from '@renderer/utils/abortController'
+import { formatApiHost } from '@renderer/utils/api'
+import { TavilySearchResponse } from '@tavily/core'
+import { t } from 'i18next'
+import { isEmpty } from 'lodash'
+import type OpenAI from 'openai'
 
-import { CompletionsParams } from '.'
+import type { CompletionsParams } from '.'
 
 export default abstract class BaseProvider {
   protected provider: Provider
@@ -31,7 +44,7 @@ export default abstract class BaseProvider {
 
   public getBaseURL(): string {
     const host = this.provider.apiHost
-    return host.endsWith('/') ? host : `${host}/v1/`
+    return formatApiHost(host)
   }
 
   public getApiKey() {
@@ -63,7 +76,11 @@ export default abstract class BaseProvider {
   }
 
   public get keepAliveTime() {
-    return this.provider.id === 'ollama' ? getOllamaKeepAliveTime() : undefined
+    return this.provider.id === 'ollama'
+      ? getOllamaKeepAliveTime()
+      : this.provider.id === 'lmstudio'
+        ? getLMStudioKeepAliveTime()
+        : undefined
   }
 
   public async fakeCompletions({ onChunk }: CompletionsParams) {
@@ -74,20 +91,43 @@ export default abstract class BaseProvider {
   }
 
   public async getMessageContent(message: Message) {
-    if (!message.knowledgeBaseIds) {
-      return message.content
+    const webSearchReferences = await this.getWebSearchReferences(message)
+
+    if (!isEmpty(webSearchReferences)) {
+      const referenceContent = `\`\`\`json\n${JSON.stringify(webSearchReferences, null, 2)}\n\`\`\``
+      return REFERENCE_PROMPT.replace('{question}', message.content).replace('{references}', referenceContent)
     }
 
-    const knowledgeId = message.knowledgeBaseIds[0]
-    const base = store.getState().knowledge.bases.find((kb) => kb.id === knowledgeId)
+    const knowledgeReferences = await getKnowledgeBaseReferences(message)
 
-    if (!base) {
-      return message.content
+    if (!isEmpty(message.knowledgeBaseIds) && isEmpty(knowledgeReferences)) {
+      window.message.info({ content: t('knowledge.no_match'), key: 'knowledge-base-no-match-info' })
     }
 
-    const references = await getKnowledgeReferences(base, message)
+    if (!isEmpty(knowledgeReferences)) {
+      const referenceContent = `\`\`\`json\n${JSON.stringify(knowledgeReferences, null, 2)}\n\`\`\``
+      return FOOTNOTE_PROMPT.replace('{question}', message.content).replace('{references}', referenceContent)
+    }
 
-    return REFERENCE_PROMPT.replace('{question}', message.content).replace('{references}', references)
+    return message.content
+  }
+
+  private async getWebSearchReferences(message: Message) {
+    const webSearch: TavilySearchResponse = window.keyv.get(`web-search-${message.id}`)
+
+    if (webSearch) {
+      return webSearch.results.map(
+        (result, index) =>
+          ({
+            id: index + 1,
+            content: result.content,
+            sourceUrl: result.url,
+            type: 'url'
+          }) as KnowledgeReference
+      )
+    }
+
+    return []
   }
 
   protected getCustomParameters(assistant: Assistant) {
@@ -98,10 +138,10 @@ export default abstract class BaseProvider {
         }
         if (param.type === 'json') {
           const value = param.value as string
-          return {
-            ...acc,
-            [param.name]: isJSON(value) ? parseJSON(value) : value
+          if (value === 'undefined') {
+            return { ...acc, [param.name]: undefined }
           }
+          return { ...acc, [param.name]: isJSON(value) ? parseJSON(value) : value }
         }
         return {
           ...acc,
@@ -109,5 +149,22 @@ export default abstract class BaseProvider {
         }
       }, {}) || {}
     )
+  }
+
+  protected createAbortController(messageId?: string) {
+    const abortController = new AbortController()
+
+    if (messageId) {
+      addAbortController(messageId, () => abortController.abort())
+    }
+
+    return {
+      abortController,
+      cleanup: () => {
+        if (messageId) {
+          removeAbortController(messageId)
+        }
+      }
+    }
   }
 }

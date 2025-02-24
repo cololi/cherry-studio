@@ -22,7 +22,11 @@ function getShortcutHandler(shortcut: Shortcut) {
     case 'show_app':
       return (window: BrowserWindow) => {
         if (window.isVisible()) {
-          window.hide()
+          if (window.isFocused()) {
+            window.hide()
+          } else {
+            window.focus()
+          }
         } else {
           window.show()
           window.focus()
@@ -43,8 +47,8 @@ function formatShortcutKey(shortcut: string[]): string {
 
 function handleZoom(delta: number) {
   return (window: BrowserWindow) => {
-    const currentZoom = window.webContents.getZoomFactor()
-    const newZoom = currentZoom + delta
+    const currentZoom = configManager.getZoomFactor()
+    const newZoom = Number((currentZoom + delta).toFixed(1))
     if (newZoom >= 0.1 && newZoom <= 5.0) {
       window.webContents.setZoomFactor(newZoom)
       configManager.setZoomFactor(newZoom)
@@ -52,8 +56,65 @@ function handleZoom(delta: number) {
   }
 }
 
+const convertShortcutRecordedByKeyboardEventKeyValueToElectronGlobalShortcutFormat = (
+  shortcut: string | string[]
+): string => {
+  const accelerator = (() => {
+    if (Array.isArray(shortcut)) {
+      return shortcut
+    } else {
+      return shortcut.split('+').map((key) => key.trim())
+    }
+  })()
+
+  return accelerator
+    .map((key) => {
+      switch (key) {
+        case 'Command':
+          return 'CommandOrControl'
+        case 'Control':
+          return 'Control'
+        case 'Ctrl':
+          return 'Control'
+        case 'ArrowUp':
+          return 'Up'
+        case 'ArrowDown':
+          return 'Down'
+        case 'ArrowLeft':
+          return 'Left'
+        case 'ArrowRight':
+          return 'Right'
+        case 'AltGraph':
+          return 'Alt'
+        case 'Slash':
+          return '/'
+        case 'Semicolon':
+          return ';'
+        case 'BracketLeft':
+          return '['
+        case 'BracketRight':
+          return ']'
+        case 'Backslash':
+          return '\\'
+        case 'Quote':
+          return "'"
+        case 'Comma':
+          return ','
+        case 'Minus':
+          return '-'
+        case 'Equal':
+          return '='
+        default:
+          return key
+      }
+    })
+    .join('+')
+}
+
 export function registerShortcuts(window: BrowserWindow) {
-  window.webContents.setZoomFactor(configManager.getZoomFactor())
+  window.once('ready-to-show', () => {
+    window.webContents.setZoomFactor(configManager.getZoomFactor())
+  })
 
   const register = () => {
     if (window.isDestroyed()) return
@@ -75,11 +136,11 @@ export function registerShortcuts(window: BrowserWindow) {
 
         const accelerator = formatShortcutKey(shortcut.shortcut)
 
-        if (shortcut.key === 'show_app') {
+        if (shortcut.key === 'show_app' && shortcut.enabled) {
           showAppAccelerator = accelerator
         }
 
-        if (shortcut.key === 'mini_window') {
+        if (shortcut.key === 'mini_window' && shortcut.enabled) {
           showMiniWindowAccelerator = accelerator
         }
 
@@ -100,7 +161,10 @@ export function registerShortcuts(window: BrowserWindow) {
         }
 
         if (shortcut.enabled) {
-          globalShortcut.register(formatShortcutKey(shortcut.shortcut), () => handler(window))
+          const accelerator = convertShortcutRecordedByKeyboardEventKeyValueToElectronGlobalShortcutFormat(
+            shortcut.shortcut
+          )
+          globalShortcut.register(accelerator, () => handler(window))
         }
       } catch (error) {
         Logger.error(`[ShortcutService] Failed to register shortcut ${shortcut.key}`)
@@ -116,12 +180,16 @@ export function registerShortcuts(window: BrowserWindow) {
 
       if (showAppAccelerator) {
         const handler = getShortcutHandler({ key: 'show_app' } as Shortcut)
-        handler && globalShortcut.register(showAppAccelerator, () => handler(window))
+        const accelerator =
+          convertShortcutRecordedByKeyboardEventKeyValueToElectronGlobalShortcutFormat(showAppAccelerator)
+        handler && globalShortcut.register(accelerator, () => handler(window))
       }
 
       if (showMiniWindowAccelerator) {
         const handler = getShortcutHandler({ key: 'mini_window' } as Shortcut)
-        handler && globalShortcut.register(showMiniWindowAccelerator, () => handler(window))
+        const accelerator =
+          convertShortcutRecordedByKeyboardEventKeyValueToElectronGlobalShortcutFormat(showMiniWindowAccelerator)
+        handler && globalShortcut.register(accelerator, () => handler(window))
       }
     } catch (error) {
       Logger.error('[ShortcutService] Failed to unregister shortcuts')

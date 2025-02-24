@@ -5,7 +5,8 @@ import SelectModelPopup from '@renderer/components/Popups/SelectModelPopup'
 import { DEFAULT_CONTEXTCOUNT, DEFAULT_TEMPERATURE } from '@renderer/config/constant'
 import { SettingRow } from '@renderer/pages/settings'
 import { Assistant, AssistantSettingCustomParameters, AssistantSettings } from '@renderer/types'
-import { Button, Col, Divider, Input, InputNumber, Row, Select, Slider, Switch, Tooltip } from 'antd'
+import { modalConfirm } from '@renderer/utils'
+import { Button, Col, Divider, Input, InputNumber, Radio, Row, Select, Slider, Switch, Tooltip } from 'antd'
 import { isNull } from 'lodash'
 import { FC, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -22,7 +23,7 @@ const AssistantModelSettings: FC<Props> = ({ assistant, updateAssistant, updateA
   const [contextCount, setContextCount] = useState(assistant?.settings?.contextCount ?? DEFAULT_CONTEXTCOUNT)
   const [enableMaxTokens, setEnableMaxTokens] = useState(assistant?.settings?.enableMaxTokens ?? false)
   const [maxTokens, setMaxTokens] = useState(assistant?.settings?.maxTokens ?? 0)
-  const [autoResetModel, setAutoResetModel] = useState(assistant?.settings?.autoResetModel ?? false)
+  const [reasoningEffort, setReasoningEffort] = useState(assistant?.settings?.reasoning_effort)
   const [streamOutput, setStreamOutput] = useState(assistant?.settings?.streamOutput ?? true)
   const [defaultModel, setDefaultModel] = useState(assistant?.defaultModel)
   const [topP, setTopP] = useState(assistant?.settings?.topP ?? 1)
@@ -43,15 +44,13 @@ const AssistantModelSettings: FC<Props> = ({ assistant, updateAssistant, updateA
     }
   }
 
+  const onReasoningEffortChange = (value) => {
+    updateAssistantSettings({ reasoning_effort: value })
+  }
+
   const onContextCountChange = (value) => {
     if (!isNaN(value as number)) {
       updateAssistantSettings({ contextCount: value })
-    }
-  }
-
-  const onMaxTokensChange = (value) => {
-    if (!isNaN(value as number)) {
-      updateAssistantSettings({ maxTokens: value })
     }
   }
 
@@ -173,6 +172,7 @@ const AssistantModelSettings: FC<Props> = ({ assistant, updateAssistant, updateA
       setDefaultModel(selectedModel)
       updateAssistant({
         ...assistant,
+        model: selectedModel,
         defaultModel: selectedModel
       })
     }
@@ -187,31 +187,26 @@ const AssistantModelSettings: FC<Props> = ({ assistant, updateAssistant, updateA
       <Row align="middle" style={{ marginBottom: 10 }}>
         <Label style={{ marginBottom: 10 }}>{t('assistants.settings.default_model')}</Label>
         <Col span={24}>
-          <HStack alignItems="center">
+          <HStack alignItems="center" gap={5}>
             <Button
               icon={defaultModel ? <ModelAvatar model={defaultModel} size={20} /> : <PlusOutlined />}
               onClick={onSelectModel}>
               {defaultModel ? defaultModel.name : t('agents.edit.model.select.title')}
             </Button>
+            {defaultModel && (
+              <Button
+                icon={<DeleteOutlined />}
+                type="text"
+                onClick={() => {
+                  setDefaultModel(undefined)
+                  updateAssistant({ ...assistant, defaultModel: undefined })
+                }}
+                danger
+              />
+            )}
           </HStack>
         </Col>
       </Row>
-      <Divider style={{ margin: '10px 0' }} />
-      <SettingRow style={{ minHeight: 30 }}>
-        <Label>
-          {t('assistants.settings.auto_reset_model')}{' '}
-          <Tooltip title={t('assistants.settings.auto_reset_model.tip')}>
-            <QuestionIcon />
-          </Tooltip>
-        </Label>
-        <Switch
-          value={autoResetModel}
-          onChange={(checked) => {
-            setAutoResetModel(checked)
-            setTimeout(() => updateAssistantSettings({ autoResetModel: checked }), 500)
-          }}
-        />
-      </SettingRow>
       <Divider style={{ margin: '10px 0' }} />
       <Row align="middle">
         <Label>{t('chat.settings.temperature')}</Label>
@@ -330,34 +325,30 @@ const AssistantModelSettings: FC<Props> = ({ assistant, updateAssistant, updateA
         </HStack>
         <Switch
           checked={enableMaxTokens}
-          onChange={(enabled) => {
+          onChange={async (enabled) => {
+            if (enabled) {
+              const confirmed = await modalConfirm({
+                title: t('chat.settings.max_tokens.confirm'),
+                content: t('chat.settings.max_tokens.confirm_content'),
+                okButtonProps: {
+                  danger: true
+                }
+              })
+              if (!confirmed) return
+            }
+
             setEnableMaxTokens(enabled)
             updateAssistantSettings({ enableMaxTokens: enabled })
           }}
         />
       </SettingRow>
       {enableMaxTokens && (
-        <Row align="middle" gutter={20}>
-          <Col span={20}>
-            <Slider
-              disabled={!enableMaxTokens}
-              min={0}
-              max={32000}
-              onChange={setMaxTokens}
-              onChangeComplete={onMaxTokensChange}
-              value={typeof maxTokens === 'number' ? maxTokens : 0}
-              step={50}
-              marks={{
-                0: '0',
-                32000: t('chat.settings.max')
-              }}
-            />
-          </Col>
-          <Col span={4}>
+        <Row align="middle" style={{ marginTop: 5, marginBottom: 5 }}>
+          <Col span={24}>
             <InputNumber
               disabled={!enableMaxTokens}
               min={0}
-              max={32000}
+              max={10000000}
               step={100}
               value={maxTokens}
               changeOnBlur
@@ -382,6 +373,27 @@ const AssistantModelSettings: FC<Props> = ({ assistant, updateAssistant, updateA
             updateAssistantSettings({ streamOutput: checked })
           }}
         />
+      </SettingRow>
+      <Divider style={{ margin: '10px 0' }} />
+      <SettingRow style={{ minHeight: 30 }}>
+        <Label>
+          {t('assistants.settings.reasoning_effort')}{' '}
+          <Tooltip title={t('assistants.settings.reasoning_effort.tip')}>
+            <QuestionIcon />
+          </Tooltip>
+        </Label>
+        <Radio.Group
+          value={reasoningEffort}
+          buttonStyle="solid"
+          onChange={(e) => {
+            setReasoningEffort(e.target.value)
+            onReasoningEffortChange(e.target.value)
+          }}>
+          <Radio.Button value="low">{t('assistants.settings.reasoning_effort.low')}</Radio.Button>
+          <Radio.Button value="medium">{t('assistants.settings.reasoning_effort.medium')}</Radio.Button>
+          <Radio.Button value="high">{t('assistants.settings.reasoning_effort.high')}</Radio.Button>
+          <Radio.Button value={undefined}>{t('assistants.settings.reasoning_effort.off')}</Radio.Button>
+        </Radio.Group>
       </SettingRow>
       <Divider style={{ margin: '10px 0' }} />
       <SettingRow style={{ minHeight: 30 }}>

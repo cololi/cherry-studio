@@ -26,6 +26,9 @@ import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { v4 as uuidv4 } from 'uuid'
 
+import { useAgents } from './useAgents'
+import { useAssistants } from './useAssistant'
+
 export const useKnowledge = (baseId: string) => {
   const dispatch = useDispatch()
   const base = useSelector((state: RootState) => state.knowledge.bases.find((b) => b.id === baseId))
@@ -135,15 +138,18 @@ export const useKnowledge = (baseId: string) => {
   const removeItem = async (item: KnowledgeItem) => {
     dispatch(removeItemAction({ baseId, item }))
     if (base) {
-      if (item?.uniqueId) {
-        await window.api.knowledgeBase.remove({ uniqueId: item.uniqueId, base: getKnowledgeBaseParams(base) })
-      }
-      if (item.type === 'file' && typeof item.content === 'object') {
-        await FileManager.deleteFile(item.content.id)
+      if (item?.uniqueId && item?.uniqueIds) {
+        await window.api.knowledgeBase.remove({
+          uniqueId: item.uniqueId,
+          uniqueIds: item.uniqueIds,
+          base: getKnowledgeBaseParams(base)
+        })
       }
     }
+    if (item.type === 'file' && typeof item.content === 'object') {
+      await FileManager.deleteFile(item.content.id)
+    }
   }
-
   // 刷新项目
   const refreshItem = async (item: KnowledgeItem) => {
     const status = getProcessingStatus(item.id)
@@ -152,8 +158,12 @@ export const useKnowledge = (baseId: string) => {
       return
     }
 
-    if (base && item.uniqueId) {
-      await window.api.knowledgeBase.remove({ uniqueId: item.uniqueId, base: getKnowledgeBaseParams(base) })
+    if (base && item.uniqueId && item.uniqueIds) {
+      await window.api.knowledgeBase.remove({
+        uniqueId: item.uniqueId,
+        uniqueIds: item.uniqueIds,
+        base: getKnowledgeBaseParams(base)
+      })
       updateItem({
         ...item,
         processingStatus: 'pending',
@@ -186,6 +196,27 @@ export const useKnowledge = (baseId: string) => {
   // 获取特定类型的所有处理项
   const getProcessingItemsByType = (type: 'file' | 'url' | 'note') => {
     return base?.items.filter((item) => item.type === type && item.processingStatus !== undefined) || []
+  }
+
+  // 获取目录处理进度
+  const getDirectoryProcessingPercent = (itemId?: string) => {
+    const [percent, setPercent] = useState<number>(0)
+
+    useEffect(() => {
+      if (!itemId) {
+        return
+      }
+
+      const cleanup = window.electron.ipcRenderer.on(itemId, (_, progressingPercent: number) => {
+        setPercent(progressingPercent)
+      })
+
+      return () => {
+        cleanup()
+      }
+    }, [itemId])
+
+    return percent
   }
 
   // 清除已完成的项目
@@ -270,6 +301,7 @@ export const useKnowledge = (baseId: string) => {
     refreshItem,
     getProcessingStatus,
     getProcessingItemsByType,
+    getDirectoryProcessingPercent,
     clearCompleted,
     clearAll,
     removeItem,
@@ -281,6 +313,8 @@ export const useKnowledge = (baseId: string) => {
 export const useKnowledgeBases = () => {
   const dispatch = useDispatch()
   const bases = useSelector((state: RootState) => state.knowledge.bases)
+  const { assistants, updateAssistants } = useAssistants()
+  const { agents, updateAgents } = useAgents()
 
   const addKnowledgeBase = (base: KnowledgeBase) => {
     dispatch(addBase(base))
@@ -292,6 +326,31 @@ export const useKnowledgeBases = () => {
 
   const deleteKnowledgeBase = (baseId: string) => {
     dispatch(deleteBase({ baseId }))
+
+    // remove assistant knowledge_base
+    const _assistants = assistants.map((assistant) => {
+      if (assistant.knowledge_bases?.find((kb) => kb.id === baseId)) {
+        return {
+          ...assistant,
+          knowledge_bases: assistant.knowledge_bases.filter((kb) => kb.id !== baseId)
+        }
+      }
+      return assistant
+    })
+
+    // remove agent knowledge_base
+    const _agents = agents.map((agent) => {
+      if (agent.knowledge_bases?.find((kb) => kb.id === baseId)) {
+        return {
+          ...agent,
+          knowledge_bases: agent.knowledge_bases.filter((kb) => kb.id !== baseId)
+        }
+      }
+      return agent
+    })
+
+    updateAssistants(_assistants)
+    updateAgents(_agents)
   }
 
   const updateKnowledgeBases = (bases: KnowledgeBase[]) => {

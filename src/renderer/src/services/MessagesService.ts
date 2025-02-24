@@ -3,8 +3,9 @@ import { DEFAULT_CONTEXTCOUNT } from '@renderer/config/constant'
 import { getTopicById } from '@renderer/hooks/useTopic'
 import i18n from '@renderer/i18n'
 import store from '@renderer/store'
-import { Assistant, Message, Topic } from '@renderer/types'
-import { uuid } from '@renderer/utils'
+import { Assistant, Message, Model, Topic } from '@renderer/types'
+import { getTitleFromString, uuid } from '@renderer/utils'
+import dayjs from 'dayjs'
 import { isEmpty, remove, takeRight } from 'lodash'
 import { NavigateFunction } from 'react-router'
 
@@ -86,7 +87,7 @@ export function getUserMessage({
     content: content || '',
     assistantId: assistant.id,
     topicId: topic.id,
-    modelId: model.id,
+    model,
     createdAt: new Date().toISOString(),
     type,
     status: 'success'
@@ -103,7 +104,7 @@ export function getAssistantMessage({ assistant, topic }: { assistant: Assistant
     content: '',
     assistantId: assistant.id,
     topicId: topic.id,
-    modelId: model.id,
+    model,
     createdAt: new Date().toISOString(),
     type: 'text',
     status: 'sending'
@@ -148,4 +149,33 @@ export function getGroupedMessages(messages: Message[]): { [key: string]: (Messa
     groups[key].unshift({ ...message, index })
   })
   return groups
+}
+
+export function getMessageModelId(message: Message) {
+  return message?.model?.id || message.modelId
+}
+
+export function resetAssistantMessage(message: Message, model?: Model): Message {
+  return {
+    ...message,
+    model: model || message.model,
+    content: '',
+    status: 'sending',
+    translatedContent: undefined,
+    reasoning_content: undefined,
+    usage: undefined,
+    metrics: undefined,
+    metadata: undefined,
+    useful: undefined
+  }
+}
+
+export function getMessageTitle(message: Message, length = 30) {
+  let title = getTitleFromString(message.content, length)
+
+  if (!title) {
+    title = dayjs(message.createdAt).format('YYYYMMDDHHmm')
+  }
+
+  return title
 }

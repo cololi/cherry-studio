@@ -1,10 +1,13 @@
+import type { TavilySearchResponse } from '@tavily/core'
 import OpenAI from 'openai'
+import React from 'react'
 import { BuiltinTheme } from 'shiki'
 
 export type Assistant = {
   id: string
   name: string
   prompt: string
+  knowledge_bases?: KnowledgeBase[]
   topics: Topic[]
   type: string
   emoji?: string
@@ -36,8 +39,8 @@ export type AssistantSettings = {
   streamOutput: boolean
   hideMessages: boolean
   defaultModel?: Model
-  autoResetModel: boolean
   customParameters?: AssistantSettingCustomParameters[]
+  reasoning_effort?: 'low' | 'medium' | 'high'
 }
 
 export type Agent = Omit<Assistant, 'model'>
@@ -51,8 +54,9 @@ export type Message = {
   translatedContent?: string
   topicId: string
   createdAt: string
-  status: 'sending' | 'pending' | 'success' | 'paused' | 'error'
+  status: 'sending' | 'pending' | 'searching' | 'success' | 'paused' | 'error'
   modelId?: string
+  model?: Model
   files?: FileType[]
   images?: string[]
   usage?: OpenAI.Completions.CompletionUsage
@@ -61,13 +65,17 @@ export type Message = {
   type: 'text' | '@' | 'clear'
   isPreset?: boolean
   mentions?: Model[]
-  model?: Model
+  askId?: string
+  useful?: boolean
+  error?: Record<string, any>
   metadata?: {
     // Gemini
     groundingMetadata?: any
+    // Perplexity
+    citations?: string[]
+    // Web search
+    tavily?: TavilySearchResponse
   }
-  askId?: string
-  useful?: boolean
 }
 
 export type Metrics = {
@@ -84,6 +92,8 @@ export type Topic = {
   createdAt: string
   updatedAt: string
   messages: Message[]
+  pinned?: boolean
+  prompt?: string
 }
 
 export type User = {
@@ -105,9 +115,9 @@ export type Provider = {
   isSystem?: boolean
 }
 
-export type ProviderType = 'openai' | 'anthropic' | 'gemini' | 'qwenlm'
+export type ProviderType = 'openai' | 'anthropic' | 'gemini' | 'qwenlm' | 'azure-openai'
 
-export type ModelType = 'text' | 'vision' | 'embedding'
+export type ModelType = 'text' | 'vision' | 'embedding' | 'reasoning'
 
 export type Model = {
   id: string
@@ -145,6 +155,7 @@ export type MinAppType = {
   url: string
   bodered?: boolean
   background?: string
+  style?: React.CSSProperties
 }
 
 export interface FileType {
@@ -177,6 +188,8 @@ export enum ThemeMode {
 
 export type LanguageVarious = 'zh-CN' | 'zh-TW' | 'en-US' | 'ru-RU' | 'ja-JP'
 
+export type TranslateLanguageVarious = 'chinese' | 'chinese-traditional' | 'english' | 'japanese' | 'russian'
+
 export type CodeStyleVarious = BuiltinTheme | 'auto'
 
 export type WebDavConfig = {
@@ -191,6 +204,7 @@ export type AppInfo = {
   isPackaged: boolean
   appPath: string
   appDataPath: string
+  resourcesPath: string
   filesPath: string
   logsPath: string
 }
@@ -211,6 +225,7 @@ export type KnowledgeItem = {
   id: string
   baseId?: string
   uniqueId?: string
+  uniqueIds?: string[]
   type: KnowledgeItemType
   content: string | FileType
   created_at: number
@@ -231,6 +246,10 @@ export interface KnowledgeBase {
   created_at: number
   updated_at: number
   version: number
+  documentCount?: number
+  chunkSize?: number
+  chunkOverlap?: number
+  threshold?: number
 }
 
 export type KnowledgeBaseParams = {
@@ -240,6 +259,8 @@ export type KnowledgeBaseParams = {
   apiKey: string
   apiVersion?: string
   baseURL: string
+  chunkSize?: number
+  chunkOverlap?: number
 }
 
 export type GenerateImageParams = {
@@ -255,4 +276,27 @@ export type GenerateImageParams = {
   promptEnhancement?: boolean
 }
 
+export interface TranslateHistory {
+  id: string
+  sourceText: string
+  targetText: string
+  sourceLanguage: string
+  targetLanguage: string
+  createdAt: string
+}
+
 export type SidebarIcon = 'assistants' | 'agents' | 'paintings' | 'translate' | 'minapp' | 'knowledge' | 'files'
+
+export type WebSearchProvider = {
+  id: string
+  name: string
+  apiKey: string
+}
+
+export type KnowledgeReference = {
+  id: number
+  content: string
+  sourceUrl: string
+  type: KnowledgeItemType
+  file?: FileType
+}

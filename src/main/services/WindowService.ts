@@ -17,6 +17,7 @@ export class WindowService {
   private wasFullScreen: boolean = false
   private selectionMenuWindow: BrowserWindow | null = null
   private lastSelectedText: string = ''
+  private contextMenu: Menu | null = null
 
   public static getInstance(): WindowService {
     if (!WindowService.instance) {
@@ -27,6 +28,7 @@ export class WindowService {
 
   public createMainWindow(): BrowserWindow {
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+      this.mainWindow.show()
       return this.mainWindow
     }
 
@@ -60,7 +62,8 @@ export class WindowService {
         preload: join(__dirname, '../preload/index.js'),
         sandbox: false,
         webSecurity: false,
-        webviewTag: true
+        webviewTag: true,
+        allowRunningInsecureContent: true
       }
     })
 
@@ -110,15 +113,25 @@ export class WindowService {
   }
 
   private setupContextMenu(mainWindow: BrowserWindow) {
-    mainWindow.webContents.on('context-menu', () => {
+    if (!this.contextMenu) {
       const locale = locales[configManager.getLanguage()]
       const { common } = locale.translation
 
-      const menu = new Menu()
-      menu.append(new MenuItem({ label: common.copy, role: 'copy' }))
-      menu.append(new MenuItem({ label: common.paste, role: 'paste' }))
-      menu.append(new MenuItem({ label: common.cut, role: 'cut' }))
-      menu.popup()
+      this.contextMenu = new Menu()
+      this.contextMenu.append(new MenuItem({ label: common.copy, role: 'copy' }))
+      this.contextMenu.append(new MenuItem({ label: common.paste, role: 'paste' }))
+      this.contextMenu.append(new MenuItem({ label: common.cut, role: 'cut' }))
+    }
+
+    mainWindow.webContents.on('context-menu', () => {
+      this.contextMenu?.popup()
+    })
+
+    // Handle webview context menu
+    mainWindow.webContents.on('did-attach-webview', (_, webContents) => {
+      webContents.on('context-menu', () => {
+        this.contextMenu?.popup()
+      })
     })
   }
 
@@ -151,6 +164,24 @@ export class WindowService {
 
     mainWindow.webContents.setWindowOpenHandler((details) => {
       const { url } = details
+
+      const oauthProviderUrls = [
+        'https://account.siliconflow.cn/oauth',
+        'https://cloud.siliconflow.cn/expensebill',
+        'https://aihubmix.com/token',
+        'https://aihubmix.com/topup'
+      ]
+
+      if (oauthProviderUrls.some((link) => url.startsWith(link))) {
+        return {
+          action: 'allow',
+          overrideBrowserWindowOptions: {
+            webPreferences: {
+              partition: 'persist:webview'
+            }
+          }
+        }
+      }
 
       if (url.includes('http://file/')) {
         const fileName = url.replace('http://file/', '')
@@ -218,17 +249,32 @@ export class WindowService {
       event.preventDefault()
       mainWindow.hide()
     })
+
+    mainWindow.on('closed', () => {
+      this.mainWindow = null
+    })
+
+    mainWindow.on('show', () => {
+      if (this.miniWindow && !this.miniWindow.isDestroyed()) {
+        this.miniWindow.hide()
+      }
+    })
   }
 
   public showMainWindow() {
-    if (this.mainWindow) {
+    if (this.miniWindow && !this.miniWindow.isDestroyed()) {
+      this.miniWindow.hide()
+    }
+
+    if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       if (this.mainWindow.isMinimized()) {
-        return this.mainWindow.restore()
+        this.mainWindow.restore()
       }
       this.mainWindow.show()
       this.mainWindow.focus()
     } else {
-      this.createMainWindow()
+      this.mainWindow = this.createMainWindow()
+      this.mainWindow.focus()
     }
   }
 
@@ -239,7 +285,10 @@ export class WindowService {
       return
     }
 
-    if (this.selectionMenuWindow) {
+    if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+      this.mainWindow.hide()
+    }
+    if (this.selectionMenuWindow && !this.selectionMenuWindow.isDestroyed()) {
       this.selectionMenuWindow.hide()
     }
 

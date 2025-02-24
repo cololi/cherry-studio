@@ -42,10 +42,10 @@ const Translate: FC<Props> = ({ text }) => {
       const message: Message = {
         id: uuid(),
         role: 'user',
-        content: text,
+        content: '',
         assistantId: assistant.id,
         topicId: uuid(),
-        modelId: translateModel.id,
+        model: translateModel,
         createdAt: new Date().toISOString(),
         type: 'text',
         status: 'sending'

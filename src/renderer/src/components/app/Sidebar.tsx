@@ -1,6 +1,12 @@
-import { FileSearchOutlined, FolderOutlined, PictureOutlined, TranslationOutlined } from '@ant-design/icons'
+import {
+  FileSearchOutlined,
+  FolderOutlined,
+  PictureOutlined,
+  QuestionCircleOutlined,
+  TranslationOutlined
+} from '@ant-design/icons'
 import { isMac } from '@renderer/config/constant'
-import { isLocalAi, UserAvatar } from '@renderer/config/env'
+import { AppLogo, isLocalAi, UserAvatar } from '@renderer/config/env'
 import { useTheme } from '@renderer/context/ThemeProvider'
 import useAvatar from '@renderer/hooks/useAvatar'
 import { useMinapps } from '@renderer/hooks/useMinapps'
@@ -42,6 +48,15 @@ const Sidebar: FC = () => {
     navigate(path)
   }
 
+  const onOpenDocs = () => {
+    MinApp.start({
+      id: 'docs',
+      name: t('docs.title'),
+      url: 'https://docs.cherry-ai.com/',
+      logo: AppLogo
+    })
+  }
+
   return (
     <Container
       id="app-sidebar"
@@ -63,7 +78,14 @@ const Sidebar: FC = () => {
           </AppsContainer>
         )}
       </MainMenusContainer>
-      <Menus onClick={MinApp.onClose}>
+      <Menus>
+        <Tooltip title={t('docs.title')} mouseEnterDelay={0.8} placement="right">
+          <Icon
+            onClick={onOpenDocs}
+            className={minappShow && MinApp.app?.url === 'https://docs.cherry-ai.com/' ? 'active' : ''}>
+            <QuestionCircleOutlined />
+          </Icon>
+        </Tooltip>
         <Tooltip title={t('settings.theme.title')} mouseEnterDelay={0.8} placement="right">
           <Icon onClick={() => toggleTheme()}>
             {theme === 'dark' ? (
@@ -74,8 +96,14 @@ const Sidebar: FC = () => {
           </Icon>
         </Tooltip>
         <Tooltip title={t('settings.title')} mouseEnterDelay={0.8} placement="right">
-          <StyledLink onClick={() => to(isLocalAi ? '/settings/assistant' : '/settings/provider')}>
-            <Icon className={pathname.startsWith('/settings') ? 'active' : ''}>
+          <StyledLink
+            onClick={async () => {
+              if (minappShow) {
+                await MinApp.close()
+              }
+              await to(isLocalAi ? '/settings/assistant' : '/settings/provider')
+            }}>
+            <Icon className={pathname.startsWith('/settings') && !minappShow ? 'active' : ''}>
               <i className="iconfont icon-setting" />
             </Icon>
           </StyledLink>
@@ -89,10 +117,11 @@ const MainMenus: FC = () => {
   const { t } = useTranslation()
   const { pathname } = useLocation()
   const { sidebarIcons } = useSettings()
+  const { minappShow } = useRuntime()
   const navigate = useNavigate()
 
-  const isRoute = (path: string): string => (pathname === path ? 'active' : '')
-  const isRoutes = (path: string): string => (pathname.startsWith(path) ? 'active' : '')
+  const isRoute = (path: string): string => (pathname === path && !minappShow ? 'active' : '')
+  const isRoutes = (path: string): string => (pathname.startsWith(path) && !minappShow ? 'active' : '')
 
   const iconMap = {
     assistants: <i className="iconfont icon-chat" />,
@@ -120,7 +149,13 @@ const MainMenus: FC = () => {
 
     return (
       <Tooltip key={icon} title={t(`${icon}.title`)} mouseEnterDelay={0.8} placement="right">
-        <StyledLink onClick={() => navigate(path)}>
+        <StyledLink
+          onClick={async () => {
+            if (minappShow) {
+              await MinApp.close()
+            }
+            navigate(path)
+          }}>
           <Icon className={isActive}>{iconMap[icon]}</Icon>
         </StyledLink>
       </Tooltip>
@@ -131,6 +166,7 @@ const MainMenus: FC = () => {
 const PinnedApps: FC = () => {
   const { pinned, updatePinnedMinapps } = useMinapps()
   const { t } = useTranslation()
+  const { minappShow } = useRuntime()
 
   return (
     <DragableList list={pinned} onUpdate={updatePinnedMinapps} listStyle={{ marginBottom: 5 }}>
@@ -145,11 +181,12 @@ const PinnedApps: FC = () => {
             }
           }
         ]
+        const isActive = minappShow && MinApp.app?.id === app.id
         return (
           <Tooltip key={app.id} title={app.name} mouseEnterDelay={0.8} placement="right">
             <StyledLink>
               <Dropdown menu={{ items: menuItems }} trigger={['contextMenu']}>
-                <Icon onClick={() => MinApp.start(app)}>
+                <Icon onClick={() => MinApp.start(app)} className={isActive ? 'active' : ''}>
                   <MinAppIcon size={20} app={app} style={{ borderRadius: 6 }} />
                 </Icon>
               </Dropdown>

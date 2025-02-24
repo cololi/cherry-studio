@@ -22,8 +22,14 @@ export interface RuntimeState {
   minappShow: boolean
   searching: boolean
   filesPath: string
+  resourcesPath: string
   update: UpdateState
   webdavSync: WebDAVSyncState
+  export: ExportState
+}
+
+export interface ExportState {
+  isExporting: boolean
 }
 
 const initialState: RuntimeState = {
@@ -32,6 +38,7 @@ const initialState: RuntimeState = {
   minappShow: false,
   searching: false,
   filesPath: '',
+  resourcesPath: '',
   update: {
     info: null,
     checking: false,
@@ -43,6 +50,9 @@ const initialState: RuntimeState = {
     lastSyncTime: null,
     syncing: false,
     lastSyncError: null
+  },
+  export: {
+    isExporting: false
   }
 }
 
@@ -65,11 +75,17 @@ const runtimeSlice = createSlice({
     setFilesPath: (state, action: PayloadAction<string>) => {
       state.filesPath = action.payload
     },
+    setResourcesPath: (state, action: PayloadAction<string>) => {
+      state.resourcesPath = action.payload
+    },
     setUpdateState: (state, action: PayloadAction<Partial<UpdateState>>) => {
       state.update = { ...state.update, ...action.payload }
     },
     setWebDAVSyncState: (state, action: PayloadAction<Partial<WebDAVSyncState>>) => {
       state.webdavSync = { ...state.webdavSync, ...action.payload }
+    },
+    setExportState: (state, action: PayloadAction<Partial<ExportState>>) => {
+      state.export = { ...state.export, ...action.payload }
     }
   }
 })
@@ -80,8 +96,10 @@ export const {
   setMinappShow,
   setSearching,
   setFilesPath,
+  setResourcesPath,
   setUpdateState,
-  setWebDAVSyncState
+  setWebDAVSyncState,
+  setExportState
 } = runtimeSlice.actions
 
 export default runtimeSlice.reducer

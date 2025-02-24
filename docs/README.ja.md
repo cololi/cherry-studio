@@ -1,17 +1,21 @@
-<div align="center">
+<h1 align="center">
   <a href="https://github.com/kangfenmao/cherry-studio/releases">
     <img src="https://github.com/kangfenmao/cherry-studio/blob/main/build/icon.png?raw=true" width="150" height="150" alt="banner" />
   </a>
-</div>
+</h1>
 <div align="center">
   <a href="./README.md">English</a> | <a href="./README.zh.md">中文</a> | 日本語
 </div>
-
+<div align="center">
+ <a href="https://trendshift.io/repositories/11772" target="_blank"><img src="https://trendshift.io/api/badge/repositories/11772" alt="kangfenmao%2Fcherry-studio | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+</div>
 # 🍒 Cherry Studio
 
 Cherry Studioは、複数のLLMプロバイダーをサポートするデスクトップクライアントで、Windows、Mac、Linuxで利用可能です。
 
-👏 [Telegramグループ](https://t.me/CherryStudioAI)に参加しましょう
+👏 [Telegram](https://t.me/CherryStudioAI)｜[Discord](https://discord.gg/wez8HtpxqQ) | [QQグループ(1025067911)](https://qm.qq.com/q/RIBAO2pPKS)
+
+❤️ Cherry Studioをお気に入りにしましたか？小さな星をつけてください 🌟 または [スポンサー](sponsor.md) をして開発をサポートしてください！❤️
 
 # 🌠 スクリーンショット
 
@@ -27,7 +31,7 @@ Cherry Studioは、複数のLLMプロバイダーをサポートするデスク�
 
    - ☁️ 主要な LLM クラウドサービス対応：OpenAI、Gemini、Anthropic など
    - 🔗 AI Web サービス統合：Claude、Peplexity、Poe など
-   - 💻 Ollama によるローカルモデル実行対応
+   - 💻 Ollama、LM Studio によるローカルモデル実行対応
 
 2. **AI アシスタントと対話**：
 
@@ -56,6 +60,20 @@ Cherry Studioは、複数のLLMプロバイダーをサポートするデスク�
    - 🎨 ライト/ダークテーマと透明ウィンドウ対応
    - 📝 完全な Markdown レンダリング
    - 🤲 簡単な共有機能
+
+# 📝 TODO
+
+- [x] クイックポップアップ（クリップボードの読み取り、簡単な質問、説明、翻訳、要約）
+- [x] 複数モデルの回答の比較
+- [x] サービスプロバイダーが提供するSSOを使用したログインをサポート
+- [ ] すべてのモデルがネットワークをサポート（開発中...）
+- [ ] 最初の公式バージョンのリリース
+- [ ] プラグイン機能（JavaScript）
+- [ ] ブラウザ拡張機能（テキストをハイライトして翻訳、要約、ナレッジベースに追加）
+- [ ] iOS & Android クライアント
+- [ ] AIノート
+- [ ] 音声入出力（AIコール）
+- [ ] データバックアップはカスタムバックアップコンテンツをサポート
 
 # 🖥️ 開発
 
@@ -112,6 +130,10 @@ Cherry Studioへの貢献を歓迎します！以下の方法で貢献できま�
 詳細なガイドラインについては、[貢献ガイド](./CONTRIBUTING.md)をご覧ください。
 
 ご支援と貢献に感謝します！
+
+## 関連頁版
+
+- [one-api](https://github.com/songquanpeng/one-api):LLM APIの管理・配信システム。OpenAI、Azure、Anthropicなどの主要モデルに対応し、統一APIインターフェースを提供。APIキー管理と再配布に利用可能。
 
 # 🚀 コントリビューター
 

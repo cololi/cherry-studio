@@ -1,6 +1,7 @@
 /* eslint-disable react/no-unknown-property */
-import { CloseOutlined, ExportOutlined, PushpinOutlined, ReloadOutlined } from '@ant-design/icons'
+import { CloseOutlined, CodeOutlined, ExportOutlined, PushpinOutlined, ReloadOutlined } from '@ant-design/icons'
 import { isMac, isWindows } from '@renderer/config/constant'
+import { AppLogo } from '@renderer/config/env'
 import { DEFAULT_MIN_APPS } from '@renderer/config/minapps'
 import { useBridge } from '@renderer/hooks/useBridge'
 import { useMinapps } from '@renderer/hooks/useMinapps'
@@ -41,7 +42,11 @@ const PopupContainer: React.FC<Props> = ({ app, resolve }) => {
   }
 
   MinApp.onClose = onClose
-
+  const openDevTools = () => {
+    if (webviewRef.current) {
+      webviewRef.current.openDevTools()
+    }
+  }
   const onReload = () => {
     if (webviewRef.current) {
       webviewRef.current.src = app.url
@@ -49,14 +54,17 @@ const PopupContainer: React.FC<Props> = ({ app, resolve }) => {
   }
 
   const onOpenLink = () => {
-    window.api.openWebsite(app.url)
+    if (webviewRef.current) {
+      const currentUrl = webviewRef.current.getURL()
+      window.api.openWebsite(currentUrl)
+    }
   }
 
   const onTogglePin = () => {
     const newPinned = isPinned ? pinned.filter((item) => item.id !== app.id) : [...pinned, app]
     updatePinnedMinapps(newPinned)
   }
-
+  const isInDevelopment = process.env.NODE_ENV === 'development'
   const Title = () => {
     return (
       <TitleContainer style={{ justifyContent: 'space-between' }}>
@@ -73,6 +81,11 @@ const PopupContainer: React.FC<Props> = ({ app, resolve }) => {
           {canOpenExternalLink && (
             <Button onClick={onOpenLink}>
               <ExportOutlined />
+            </Button>
+          )}
+          {isInDevelopment && (
+            <Button onClick={openDevTools}>
+              <CodeOutlined />
             </Button>
           )}
           <Button onClick={() => onClose()}>
@@ -236,6 +249,10 @@ export default class MinApp {
       await delay(0)
     }
 
+    if (!app.logo) {
+      app.logo = AppLogo
+    }
+
     MinApp.app = app
     store.dispatch(setMinappShow(true))
 
@@ -257,5 +274,6 @@ export default class MinApp {
     TopView.hide('MinApp')
     store.dispatch(setMinappShow(false))
     MinApp.app = null
+    MinApp.onClose = () => {}
   }
 }

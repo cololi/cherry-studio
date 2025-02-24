@@ -4,11 +4,15 @@ import {
   DeleteOutlined,
   EditOutlined,
   FolderOutlined,
+  PushpinOutlined,
+  QuestionCircleOutlined,
   UploadOutlined
 } from '@ant-design/icons'
 import DragableList from '@renderer/components/DragableList'
+import CopyIcon from '@renderer/components/Icons/CopyIcon'
 import PromptPopup from '@renderer/components/Popups/PromptPopup'
 import Scrollbar from '@renderer/components/Scrollbar'
+import { isMac } from '@renderer/config/constant'
 import { useAssistant, useAssistants } from '@renderer/hooks/useAssistant'
 import { modelGenerating } from '@renderer/hooks/useRuntime'
 import { useSettings } from '@renderer/hooks/useSettings'
@@ -18,11 +22,12 @@ import { EVENT_NAMES, EventEmitter } from '@renderer/services/EventService'
 import store from '@renderer/store'
 import { setGenerating } from '@renderer/store/runtime'
 import { Assistant, Topic } from '@renderer/types'
-import { exportTopicAsMarkdown, topicToMarkdown } from '@renderer/utils/export'
-import { Dropdown, MenuProps } from 'antd'
+import { copyTopicAsMarkdown } from '@renderer/utils/copy'
+import { exportMarkdownToNotion, exportTopicAsMarkdown, topicToMarkdown } from '@renderer/utils/export'
+import { Dropdown, MenuProps, Tooltip } from 'antd'
 import dayjs from 'dayjs'
 import { findIndex } from 'lodash'
-import { FC, useCallback } from 'react'
+import { FC, useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import styled from 'styled-components'
 
@@ -40,11 +45,55 @@ const Topics: FC<Props> = ({ assistant: _assistant, activeTopic, setActiveTopic 
 
   const borderRadius = showTopicTime ? 12 : 'var(--list-item-border-radius)'
 
+  const [deletingTopicId, setDeletingTopicId] = useState<string | null>(null)
+  const deleteTimerRef = useRef<NodeJS.Timeout>()
+
+  const handleDeleteClick = useCallback((topicId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+
+    if (deleteTimerRef.current) {
+      clearTimeout(deleteTimerRef.current)
+    }
+
+    setDeletingTopicId(topicId)
+
+    deleteTimerRef.current = setTimeout(() => setDeletingTopicId(null), 2000)
+  }, [])
+
+  const onClearMessages = useCallback((topic: Topic) => {
+    window.keyv.set(EVENT_NAMES.CHAT_COMPLETION_PAUSED, true)
+    store.dispatch(setGenerating(false))
+    EventEmitter.emit(EVENT_NAMES.CLEAR_MESSAGES, topic)
+  }, [])
+
+  const handleConfirmDelete = useCallback(
+    async (topic: Topic, e: React.MouseEvent) => {
+      e.stopPropagation()
+      if (assistant.topics.length === 1) {
+        return onClearMessages(topic)
+      }
+      await modelGenerating()
+      const index = findIndex(assistant.topics, (t) => t.id === topic.id)
+      setActiveTopic(assistant.topics[index + 1 === assistant.topics.length ? index - 1 : index + 1])
+      removeTopic(topic)
+      setDeletingTopicId(null)
+    },
+    [assistant.topics, onClearMessages, removeTopic, setActiveTopic]
+  )
+
+  const onPinTopic = useCallback(
+    (topic: Topic) => {
+      const updatedTopic = { ...topic, pinned: !topic.pinned }
+      updateTopic(updatedTopic)
+    },
+    [updateTopic]
+  )
+
   const onDeleteTopic = useCallback(
     async (topic: Topic) => {
       await modelGenerating()
       const index = findIndex(assistant.topics, (t) => t.id === topic.id)
-      setActiveTopic(assistant.topics[index + 1 === assistant.topics.length ? 0 : index + 1])
+      setActiveTopic(assistant.topics[index + 1 === assistant.topics.length ? index - 1 : index + 1])
       removeTopic(topic)
     },
     [assistant.topics, removeTopic, setActiveTopic]
@@ -67,12 +116,6 @@ const Topics: FC<Props> = ({ assistant: _assistant, activeTopic, setActiveTopic 
     },
     [setActiveTopic]
   )
-
-  const onClearMessages = useCallback(() => {
-    window.keyv.set(EVENT_NAMES.CHAT_COMPLETION_PAUSED, true)
-    store.dispatch(setGenerating(false))
-    EventEmitter.emit(EVENT_NAMES.CLEAR_MESSAGES)
-  }, [])
 
   const getTopicMenuItems = useCallback(
     (topic: Topic) => {
@@ -107,6 +150,36 @@ const Topics: FC<Props> = ({ assistant: _assistant, activeTopic, setActiveTopic 
           }
         },
         {
+          label: t('chat.topics.prompt'),
+          key: 'topic-prompt',
+          icon: <i className="iconfont icon-ai-model1" style={{ fontSize: '14px' }} />,
+          extra: (
+            <Tooltip title={t('chat.topics.prompt.tips')}>
+              <QuestionIcon />
+            </Tooltip>
+          ),
+          async onClick() {
+            const prompt = await PromptPopup.show({
+              title: t('chat.topics.prompt.edit.title'),
+              message: '',
+              defaultValue: topic?.prompt || '',
+              inputProps: {
+                rows: 8,
+                allowClear: true
+              }
+            })
+            prompt && updateTopic({ ...topic, prompt: prompt.trim() })
+          }
+        },
+        {
+          label: topic.pinned ? t('chat.topics.unpinned') : t('chat.topics.pinned'),
+          key: 'pin',
+          icon: <PushpinOutlined />,
+          onClick() {
+            onPinTopic(topic)
+          }
+        },
+        {
           label: t('chat.topics.clear.title'),
           key: 'clear-messages',
           icon: <ClearOutlined />,
@@ -114,9 +187,26 @@ const Topics: FC<Props> = ({ assistant: _assistant, activeTopic, setActiveTopic 
             window.modal.confirm({
               title: t('chat.input.clear.content'),
               centered: true,
-              onOk: onClearMessages
+              onOk: () => onClearMessages(topic)
             })
           }
+        },
+        {
+          label: t('chat.topics.copy.title'),
+          key: 'copy',
+          icon: <CopyIcon />,
+          children: [
+            {
+              label: t('chat.topics.copy.image'),
+              key: 'img',
+              onClick: () => EventEmitter.emit(EVENT_NAMES.COPY_TOPIC_IMAGE, topic)
+            },
+            {
+              label: t('chat.topics.copy.md'),
+              key: 'md',
+              onClick: () => copyTopicAsMarkdown(topic)
+            }
+          ]
         },
         {
           label: t('chat.topics.export.title'),
@@ -133,12 +223,21 @@ const Topics: FC<Props> = ({ assistant: _assistant, activeTopic, setActiveTopic 
               key: 'markdown',
               onClick: () => exportTopicAsMarkdown(topic)
             },
+
             {
               label: t('chat.topics.export.word'),
               key: 'word',
               onClick: async () => {
                 const markdown = await topicToMarkdown(topic)
                 window.api.export.toWord(markdown, topic.name)
+              }
+            },
+            {
+              label: t('chat.topics.export.notion'),
+              key: 'notion',
+              onClick: async () => {
+                const markdown = await topicToMarkdown(topic)
+                exportMarkdownToNotion(topic.name, markdown)
               }
             }
           ]
@@ -160,7 +259,7 @@ const Topics: FC<Props> = ({ assistant: _assistant, activeTopic, setActiveTopic 
         })
       }
 
-      if (assistant.topics.length > 1) {
+      if (assistant.topics.length > 1 && !topic.pinned) {
         menus.push({ type: 'divider' })
         menus.push({
           label: t('common.delete'),
@@ -173,7 +272,7 @@ const Topics: FC<Props> = ({ assistant: _assistant, activeTopic, setActiveTopic 
 
       return menus
     },
-    [assistant, assistants, onClearMessages, onDeleteTopic, onMoveTopic, t, updateTopic]
+    [assistant, assistants, onClearMessages, onDeleteTopic, onPinTopic, onMoveTopic, t, updateTopic]
   )
 
   return (
@@ -188,21 +287,44 @@ const Topics: FC<Props> = ({ assistant: _assistant, activeTopic, setActiveTopic 
                 onClick={() => onSwitchTopic(topic)}
                 style={{ borderRadius }}>
                 <TopicName className="name">{topic.name.replace('`', '')}</TopicName>
+                {topic.prompt && (
+                  <TopicPromptText className="prompt">
+                    {t('common.prompt')}: {topic.prompt}
+                  </TopicPromptText>
+                )}
                 {showTopicTime && (
                   <TopicTime className="time">{dayjs(topic.createdAt).format('MM/DD HH:mm')}</TopicTime>
                 )}
-                {isActive && (
-                  <MenuButton
-                    className="menu"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      if (assistant.topics.length === 1) {
-                        return onClearMessages()
-                      }
-                      onDeleteTopic(topic)
-                    }}>
-                    <CloseOutlined />
-                  </MenuButton>
+                <MenuButton className="pin">{topic.pinned && <PushpinOutlined />}</MenuButton>
+                {isActive && !topic.pinned && (
+                  <Tooltip
+                    placement="bottom"
+                    mouseEnterDelay={0.7}
+                    title={
+                      <div>
+                        <div style={{ fontSize: '12px', opacity: 0.8, fontStyle: 'italic' }}>
+                          {t('chat.topics.delete.shortcut', { key: isMac ? '⌘' : 'Ctrl' })}
+                        </div>
+                      </div>
+                    }>
+                    <MenuButton
+                      className="menu"
+                      onClick={(e) => {
+                        if (e.ctrlKey || e.metaKey) {
+                          handleConfirmDelete(topic, e)
+                        } else if (deletingTopicId === topic.id) {
+                          handleConfirmDelete(topic, e)
+                        } else {
+                          handleDeleteClick(topic.id, e)
+                        }
+                      }}>
+                      {deletingTopicId === topic.id ? (
+                        <DeleteOutlined style={{ color: 'var(--color-error)' }} />
+                      ) : (
+                        <CloseOutlined />
+                      )}
+                    </MenuButton>
+                  </Tooltip>
                 )}
               </TopicListItem>
             </Dropdown>
@@ -267,6 +389,18 @@ const TopicName = styled.div`
   font-size: 13px;
 `
 
+const TopicPromptText = styled.div`
+  color: var(--color-text-2);
+  font-size: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  ~ .prompt-text {
+    margin-top: 10px;
+  }
+`
+
 const TopicTime = styled.div`
   color: var(--color-text-3);
   font-size: 11px;
@@ -285,6 +419,11 @@ const MenuButton = styled.div`
   .anticon {
     font-size: 12px;
   }
+`
+const QuestionIcon = styled(QuestionCircleOutlined)`
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--color-text-3);
 `
 
 export default Topics

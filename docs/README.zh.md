@@ -1,17 +1,21 @@
-<div align="center">
+<h1 align="center">
   <a href="https://github.com/kangfenmao/cherry-studio/releases">
     <img src="https://github.com/kangfenmao/cherry-studio/blob/main/build/icon.png?raw=true" width="150" height="150" alt="banner" />
   </a>
-</div>
+</h1>
 <div align="center">
   中文 / <a href="https://github.com/kangfenmao/cherry-studio">English</a> / <a href="./README.ja.md">日本語</a>
 </div>
-
+<div align="center">
+ <a href="https://trendshift.io/repositories/11772" target="_blank"><img src="https://trendshift.io/api/badge/repositories/11772" alt="kangfenmao%2Fcherry-studio | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+</div>
 # 🍒 Cherry Studio
 
 Cherry Studio 是一款支持多个大语言模型（LLM）服务商的桌面客户端，兼容 Windows、Mac 和 Linux 系统。
 
-👏 欢迎加入 [Telegram 群组](https://t.me/CherryStudioAI)
+👏 欢迎加入 [Telegram 群组](https://t.me/CherryStudioAI)｜[Discord](https://discord.gg/wez8HtpxqQ) | [QQ群(1025067911)](https://qm.qq.com/q/RIBAO2pPKS)
+
+❤️ 喜欢 Cherry Studio? 点亮小星星 🌟 或 [赞助开发者](sponsor.md)! ❤️
 
 # 🌠 界面
 
@@ -27,7 +31,7 @@ Cherry Studio 是一款支持多个大语言模型（LLM）服务商的桌面客
 
    - ☁️ 支持主流 LLM 云服务：OpenAI、Gemini、Anthropic、硅基流动等
    - 🔗 集成流行 AI Web 服务：Claude、Peplexity、Poe、腾讯元宝、知乎直答等
-   - 💻 支持 Ollama 本地模型部署
+   - 💻 支持 Ollama、LM Studio 本地模型部署
 
 2. **智能助手与对话**：
 
@@ -56,6 +60,20 @@ Cherry Studio 是一款支持多个大语言模型（LLM）服务商的桌面客
    - 🎨 支持明暗主题与透明窗口
    - 📝 完整的 Markdown 渲染
    - 🤲 便捷的内容分享功能
+
+# 📝 待辦事項
+
+- [x] 快捷彈窗 (讀取剪貼簿、快速提問、解釋、翻譯、總結）
+- [x] 多模型回答對比
+- [x] 支援使用服務供應商提供的 SSO 進行登入
+- [ ] 全部模型支援連網（開發中...）
+- [ ] 推出第一個正式版
+- [ ] 插件功能（JavaScript）
+- [ ] 瀏覽器插件（劃詞翻譯、總結、新增至知識庫）
+- [ ] iOS & Android 客戶端
+- [ ] AI 筆記
+- [ ] 語音輸入輸出（AI 通話）
+- [ ] 資料備份支援自訂備份內容
 
 # 🖥️ 开发
 
@@ -112,6 +130,10 @@ $ yarn build:linux
 有关更详细的指南，请参阅我们的 [贡献指南](./CONTRIBUTING.md)。
 
 感谢您的支持和贡献！
+
+## 相关项目
+
+- [one-api](https://github.com/songquanpeng/one-api):LLM API管理及分发系统，支持OpenAI、Azure、Anthropic等主流模型，统一API接口，可用于密钥管理与二次分发。
 
 # 🚀 贡献者
 

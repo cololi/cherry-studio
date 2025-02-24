@@ -45,7 +45,7 @@ const PopupContainer: React.FC<Props> = ({ title, provider, resolve }) => {
     const id = values.id.trim()
 
     if (find(models, { id })) {
-      window.message.error('Model ID already exists')
+      window.message.error(t('error.model.exists'))
       return
     }
 
@@ -101,7 +101,7 @@ const PopupContainer: React.FC<Props> = ({ title, provider, resolve }) => {
           <Input
             placeholder={t('settings.models.add.model_id.placeholder')}
             spellCheck={false}
-            maxLength={50}
+            maxLength={200}
             onChange={(e) => {
               form.setFieldValue('name', e.target.value)
               form.setFieldValue('group', getDefaultGroupName(e.target.value))

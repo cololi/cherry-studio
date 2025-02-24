@@ -1,18 +1,21 @@
 import 'emoji-picker-element'
 
-import { LoadingOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { CheckOutlined, LoadingOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import EmojiPicker from '@renderer/components/EmojiPicker'
 import { TopView } from '@renderer/components/TopView'
 import { AGENT_PROMPT } from '@renderer/config/prompts'
 import { useAgents } from '@renderer/hooks/useAgents'
+import { useSidebarIconShow } from '@renderer/hooks/useSidebarIcon'
 import { fetchGenerate } from '@renderer/services/ApiService'
 import { getDefaultModel } from '@renderer/services/AssistantService'
-import { Agent } from '@renderer/types'
+import { useAppSelector } from '@renderer/store'
+import { Agent, KnowledgeBase } from '@renderer/types'
 import { getLeadingEmoji, uuid } from '@renderer/utils'
-import { Button, Form, FormInstance, Input, Modal, Popover } from 'antd'
+import { Button, Form, FormInstance, Input, Modal, Popover, Select, SelectProps } from 'antd'
 import TextArea from 'antd/es/input/TextArea'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import stringWidth from 'string-width'
 
 interface Props {
   resolve: (data: Agent | null) => void
@@ -22,6 +25,7 @@ type FieldType = {
   id: string
   name: string
   prompt: string
+  knowledge_base_ids: string[]
 }
 
 const PopupContainer: React.FC<Props> = ({ resolve }) => {
@@ -32,6 +36,16 @@ const PopupContainer: React.FC<Props> = ({ resolve }) => {
   const formRef = useRef<FormInstance>(null)
   const [emoji, setEmoji] = useState('')
   const [loading, setLoading] = useState(false)
+  const knowledgeState = useAppSelector((state) => state.knowledge)
+  const showKnowledgeIcon = useSidebarIconShow('knowledge')
+  const knowledgeOptions: SelectProps['options'] = []
+
+  knowledgeState.bases.forEach((base) => {
+    knowledgeOptions.push({
+      label: base.name,
+      value: base.id
+    })
+  })
 
   const onFinish = (values: FieldType) => {
     const _emoji = emoji || getLeadingEmoji(values.name)
@@ -43,6 +57,9 @@ const PopupContainer: React.FC<Props> = ({ resolve }) => {
     const _agent: Agent = {
       id: uuid(),
       name: values.name,
+      knowledge_bases: values.knowledge_base_ids
+        ?.map((id) => knowledgeState.bases.find((t) => t.id === id))
+        ?.filter((base): base is KnowledgeBase => base !== undefined),
       emoji: _emoji,
       prompt: values.prompt,
       defaultModel: getDefaultModel(),
@@ -92,6 +109,11 @@ const PopupContainer: React.FC<Props> = ({ resolve }) => {
     setLoading(false)
   }
 
+  // Compute label width based on the longest label
+  const labelWidth = [t('agents.add.name'), t('agents.add.prompt'), t('agents.add.knowledge_base')]
+    .map((labelText) => stringWidth(labelText) * 8)
+    .reduce((maxWidth, currentWidth) => Math.max(maxWidth, currentWidth), 80)
+
   return (
     <Modal
       title={t('agents.add.title')}
@@ -101,11 +123,12 @@ const PopupContainer: React.FC<Props> = ({ resolve }) => {
       maskClosable={false}
       afterClose={onClose}
       okText={t('agents.add.title')}
+      width={800}
       centered>
       <Form
         ref={formRef}
         form={form}
-        labelCol={{ flex: '80px' }}
+        labelCol={{ flex: `${labelWidth}px` }}
         labelAlign="left"
         colon={false}
         style={{ marginTop: 25 }}
@@ -133,6 +156,22 @@ const PopupContainer: React.FC<Props> = ({ resolve }) => {
             disabled={loading}
           />
         </div>
+        {showKnowledgeIcon && (
+          <Form.Item name="knowledge_base_ids" label={t('agents.add.knowledge_base')} rules={[{ required: false }]}>
+            <Select
+              mode="multiple"
+              allowClear
+              placeholder={t('agents.add.knowledge_base.placeholder')}
+              menuItemSelectedIcon={<CheckOutlined />}
+              options={knowledgeOptions}
+              filterOption={(input, option) =>
+                String(option?.label ?? '')
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
+              }
+            />
+          </Form.Item>
+        )}
       </Form>
     </Modal>
   )
